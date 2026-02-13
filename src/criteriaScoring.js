@@ -170,7 +170,6 @@ function scoreFormat(criteria) {
  */
 function scoreTestability(criteria) {
   let score = 0;
-  let observableCount = 0;
 
   criteria.forEach(criterion => {
     const lower = criterion.toLowerCase();
@@ -181,7 +180,6 @@ function scoreTestability(criteria) {
     );
     
     if (hasObservable) {
-      observableCount++;
       score += 3; // +3 per testable criterion
     } else {
       score += 1; // +1 for having a criterion, even if not clearly testable
@@ -197,7 +195,6 @@ function scoreTestability(criteria) {
  */
 function scoreSpecificity(criteria) {
   let score = 10; // Start with full score
-  let vagueCount = 0;
 
   criteria.forEach(criterion => {
     const lower = criterion.toLowerCase();
@@ -205,7 +202,6 @@ function scoreSpecificity(criteria) {
     // Check for vague terms
     const hasVague = VAGUE_TERMS.some(term => lower.includes(term));
     if (hasVague) {
-      vagueCount++;
       score -= 2; // -2 per vague term
     }
     
