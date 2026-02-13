@@ -50,6 +50,9 @@ function App() {
     setResult(scoreResult);
     setCurrentStory(story);
     
+    // Add XP for story
+    setTotalXP(prev => prev + scoreResult.totalScore);
+    
     // Check achievements for story only
     const newAchievements = checkAchievements(
       scoreResult.totalScore, 
@@ -81,9 +84,8 @@ function App() {
     setCriteriaResult(scoreResult);
     setSubmittedCriteria(criteria);
     
-    // Add XP from both story and criteria
-    const combinedXP = result.totalScore + scoreResult.totalScore;
-    setTotalXP(prev => prev + combinedXP);
+    // Add XP from criteria only (story XP was already added in handleSubmit)
+    setTotalXP(prev => prev + scoreResult.totalScore);
     
     // Check criteria-specific achievements
     const criteriaAchievements = checkCriteriaAchievements(

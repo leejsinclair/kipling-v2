@@ -7,14 +7,14 @@ export default function StoryAndCriteriaExport({ story, criteria }) {
     const { asA, iWant, soThat } = story;
     const storyLine = `As a ${asA}, I want ${iWant} so that ${soThat}.`;
     
-    let export_text = storyLine + '\n\n';
-    export_text += 'Acceptance Criteria:\n\n';
+    let exportText = storyLine + '\n\n';
+    exportText += 'Acceptance Criteria:\n\n';
     
     criteria.forEach((criterion, index) => {
-      export_text += `${index + 1}. ${criterion}\n\n`;
+      exportText += `${index + 1}. ${criterion}\n\n`;
     });
     
-    return export_text.trim();
+    return exportText.trim();
   };
 
   const handleCopy = async () => {
