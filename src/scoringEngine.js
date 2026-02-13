@@ -159,14 +159,16 @@ function scoreCreativity(text) {
 
 function countFillerWords(text) {
   const lowerText = text.toLowerCase();
-  return FILLER_WORDS.filter(word => 
-    lowerText.includes(word)
+  const words = lowerText.split(/\s+/);
+  return FILLER_WORDS.filter(fillerWord => 
+    words.includes(fillerWord)
   ).length;
 }
 
 function findFillerWords(text) {
   const lowerText = text.toLowerCase();
-  return FILLER_WORDS.filter(word => lowerText.includes(word));
+  const words = lowerText.split(/\s+/);
+  return FILLER_WORDS.filter(fillerWord => words.includes(fillerWord));
 }
 
 function generateSuggestions(story, breakdown) {

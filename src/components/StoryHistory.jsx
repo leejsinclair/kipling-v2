@@ -16,9 +16,9 @@ export default function StoryHistory({ stories, onExport }) {
       </div>
       
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {stories.slice().reverse().map((story, index) => (
+        {stories.slice().reverse().map((story) => (
           <div
-            key={index}
+            key={story.timestamp}
             className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
           >
             <div className="flex justify-between items-start mb-2">
