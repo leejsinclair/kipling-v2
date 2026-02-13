@@ -30,6 +30,10 @@ The app evaluates user stories based on:
 - **Achievements**: Unlock badges like "Crystal Clear Value", "Concise Master", "Epic Writer"
 - **Instant Feedback**: Get suggestions for improvement after each submission
 
+## 🌐 Live Demo
+
+Try the app live at: [https://leejsinclair.github.io/kipling-v2/](https://leejsinclair.github.io/kipling-v2/)
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -63,6 +67,16 @@ npm run build
 ```
 
 The production-ready files will be in the `dist` directory.
+
+### Deploy to GitHub Pages
+
+This project is configured to automatically deploy to GitHub Pages when changes are pushed to the `main` branch. The GitHub Actions workflow handles building and deployment.
+
+To enable GitHub Pages for your fork:
+1. Go to your repository Settings
+2. Navigate to Pages (under Code and automation)
+3. Under "Build and deployment", select "Source: GitHub Actions"
+4. The site will be available at `https://<your-username>.github.io/kipling-v2/`
 
 ### Preview Production Build
 
