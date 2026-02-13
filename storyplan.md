@@ -1,178 +1,210 @@
-# Agile Story Builder — Storyplan
+# Agile Story Builder — Acceptance Criteria Extension Storyplan
 
-## 1. Problem Statement
-Agile teams often struggle to write clear, meaningful user stories. Many stories are vague, incomplete, or lack a compelling “So that…” outcome. This app turns the process into a game, helping players learn to write strong stories through structured prompts, feedback, and scoring.
+## 1. Purpose of This Extension
+This extension adds a second phase to the Agile Story Builder game: **writing acceptance criteria** after completing a user story. The goal is to help players learn to write clear, testable, behaviour‑driven acceptance criteria using a fun, gamified workflow.
 
-The goal is to make writing good user stories fun, repeatable, and educational.
+Players will:
+1. Write a user story (existing feature)
+2. Write acceptance criteria for that story
+3. Receive scoring and feedback for both
+4. Copy the combined story + acceptance criteria into Confluence or other tools
+
+The experience should feel cohesive with the original game mechanics.
 
 ---
 
-## 2. Core User Stories (Meta)
+## 2. New Core User Stories
 
 ### 2.1 Player Stories
-- **As a player, I want** to fill in the “As a…”, “I want…”, and “So that…” fields  
-  **So that** I can learn to write complete agile stories.
+- **As a player, I want** to write acceptance criteria after completing my user story  
+  **So that** I can learn to express testable, behaviour‑driven requirements.
 
-- **As a player, I want** to receive points based on the quality and completeness of my story  
-  **So that** I can improve my skills through feedback.
+- **As a player, I want** the app to score my acceptance criteria  
+  **So that** I understand how clear and testable they are.
 
-- **As a player, I want** lightweight language analysis that rewards descriptive, outcome‑focused “So that…” sentences  
-  **So that** I learn to articulate value clearly.
+- **As a player, I want** feedback on how to improve my acceptance criteria  
+  **So that** I can learn better patterns over time.
 
-- **As a player, I want** a fun, game‑like experience with levels, streaks, and achievements  
-  **So that** I stay motivated to practice.
+- **As a player, I want** to copy my story and acceptance criteria together  
+  **So that** I can paste them directly into Confluence or my backlog tool.
+
+- **As a player, I want** the same game mechanics (XP, streaks, achievements) to apply  
+  **So that** the experience feels unified and motivating.
 
 ### 2.2 Product Owner Stories
-- **As a product owner, I want** to export or save well‑written stories  
-  **So that** I can use them in my backlog.
+- **As a product owner, I want** players to produce consistent, high‑quality acceptance criteria  
+  **So that** the resulting stories are ready for refinement or sprint planning.
 
 ---
 
-## 3. Game Concept Overview
-The app is a lightweight narrative game where players craft agile stories and earn points. The game evaluates:
+## 3. Acceptance Criteria Game Concept
 
-- Completeness (all three fields filled)
-- Clarity (simple language, no filler)
-- Length (not too short, not too long)
-- Descriptive value statement (“So that…” quality)
-- Consistency (persona matches goal)
-- Optional creativity bonus
+After the player submits a user story, the game transitions into **Phase 2: Acceptance Criteria**.
 
-Players progress through:
-- Levels (Novice → Storyteller → Product Sage)
-- Daily streaks
-- Achievements (e.g., “Crystal Clear Value”, “Epic Writer”, “Concise Master”)
-- Challenges (e.g., “Write a story under 20 words”, “Write a story for a given persona”)
+The player writes 1–5 acceptance criteria using one of the supported formats:
+- **Gherkin style**  
+  - Given…  
+  - When…  
+  - Then…
+
+- **Bullet‑point behavioural rules**  
+  - “The system must…”  
+  - “The user can…”  
+
+The game evaluates:
+- Structure (does it follow a known pattern?)
+- Clarity (is it testable?)
+- Completeness (Given/When/Then present)
+- Specificity (no vague outcomes)
+- Alignment with the story’s “So that…” value
+
+Players earn:
+- XP  
+- Streak bonuses  
+- Achievements  
+- A combined “Story Quality Score”
 
 ---
 
-## 4. Game Mechanics
+## 4. Acceptance Criteria Scoring
 
-### 4.1 Scoring
+### 4.1 Scoring Categories
 | Category | Points | Notes |
 |---------|--------|-------|
-| Completeness | +10 | All three fields filled |
-| Length | +0–10 | Ideal range: 18–40 words |
-| Clarity | +0–10 | Simple, direct language |
-| “So that” quality | +0–20 | More descriptive = more points |
+| Format correctness | +0–10 | Gherkin or bullet style |
+| Testability | +0–15 | Clear, observable outcomes |
+| Specificity | +0–10 | Avoids vague language |
+| Alignment | +0–10 | Matches story’s value |
+| Completeness | +0–10 | G/W/T or equivalent |
 | Creativity | +0–5 | Optional bonus |
-| Streak bonus | +1 per day | Encourages daily play |
+| Streak bonus | +1 per day | Same as story writing |
 
-### 4.2 Language Analysis
-Lightweight NLP heuristics:
-- Detect value‑oriented phrases (“increase”, “reduce”, “enable”, “improve”, “access”, “understand”)
-- Reward specific outcomes over vague ones  
-  (“So that I can save time” > “So that it’s better”)
-- Penalize filler (“basically”, “kind of”, “stuff”)
-- Check persona–goal alignment
-
-### 4.3 Feedback System
-After submission, the player receives:
-- Score breakdown
-- Short explanation (“Your value statement is strong and specific.”)
-- Suggested improvement
-- Badge or achievement if earned
+### 4.2 Language Analysis Heuristics
+Lightweight NLP checks for:
+- Presence of **Given/When/Then** or equivalent patterns
+- Observable outcomes (“system displays…”, “user is able to…”)
+- Avoiding vague terms (“should basically…”, “kind of works…”)
+- Alignment with the story’s “So that…” value statement
+- Overly long or overly short criteria
 
 ---
 
-## 5. App Features
+## 5. Feedback System
 
-### 5.1 Core Features
-- Story input form (three fields)
-- Real‑time word count
-- NLP scoring engine
-- Feedback panel
-- Progression system (XP, levels)
-- Achievements & badges
-- Daily challenges
-- Save/export stories
-
-### 5.2 Optional Stretch Features
-- Multiplayer “story battles”
-- Team leaderboard
-- AI‑generated personas
-- AI‑generated example stories
-- Story rewriting suggestions
+After submitting acceptance criteria, the player receives:
+- A score breakdown
+- A short explanation for each category
+- Suggestions for improvement
+- Achievement notifications
+- A combined “Story + Criteria Score”
 
 ---
 
-## 6. Architecture Overview
+## 6. Export Feature
 
-### 6.1 Frontend
-- Framework: React, Svelte, or Flutter (TBD)
-- Components:
-  - StoryForm
-  - ScoreBreakdown
-  - FeedbackPanel
-  - AchievementsModal
-  - DailyChallengeCard
-  - StoryHistory
+### 6.1 Export Format
+The app generates a clean, copy‑ready block:
 
-### 6.2 Backend
-- Lightweight API (Node, Python, or Go)
-- Endpoints:
-  - `/score-story`
-  - `/save-story`
-  - `/achievements`
-  - `/daily-challenge`
-- NLP module (simple heuristics + optional ML)
+```
+As a <persona>, I want <goal> so that <value>.
 
-### 6.3 Data Model
+Acceptance Criteria:
 
-**Story**
+Given …
+
+When …
+
+Then …
+```
+
+
+### 6.2 Export Requirements
+- One‑click “Copy to Clipboard”
+- Markdown and plain‑text friendly
+- Works cleanly when pasted into Confluence, Jira, Azure DevOps, or Linear
+
+---
+
+## 7. Updated App Flow
+
+1. Player writes user story  
+2. Story is scored  
+3. Player proceeds to acceptance criteria  
+4. Criteria are scored  
+5. Combined score is shown  
+6. Player can copy the final output  
+7. XP, streaks, and achievements update  
+8. Player can start a new story or take a daily challenge
+
+---
+
+## 8. Updated Features
+
+### 8.1 New Core Features
+- Acceptance Criteria Editor
+- Criteria Scoring Engine
+- Criteria Feedback Panel
+- Combined Story Export
+- Criteria Achievements (e.g., “Testability Master”, “Gherkin Guru”)
+
+### 8.2 Updated Existing Features
+- Story scoring now feeds into criteria scoring
+- Achievements span both phases
+- Daily challenges may include criteria‑specific tasks
+
+---
+
+## 9. Architecture Additions
+
+### 9.1 Frontend Components
+- AcceptanceCriteriaForm
+- CriteriaScoreBreakdown
+- CriteriaFeedbackPanel
+- StoryAndCriteriaExport
+- CombinedScoreSummary
+
+### 9.2 Backend Endpoints
+- `/score-criteria`
+- `/export-story`
+- `/combined-score`
+
+### 9.3 Data Model Additions
+
+**AcceptanceCriteria**
 - id  
-- asA  
-- iWant  
-- soThat  
+- storyId  
+- text[]  
 - score  
 - timestamp  
 
-**Player**
-- id  
-- xp  
-- level  
-- streak  
-- achievements[]  
-
-**Achievement**
-- id  
-- name  
-- description  
-- criteria  
+**StoryExport**
+- storyId  
+- storyText  
+- criteriaText[]  
+- exportFormat  
 
 ---
 
-## 7. Non‑Functional Requirements
-- Fast scoring (<150ms)
-- Offline‑friendly (local scoring)
-- Mobile‑first UI
-- Accessible (WCAG AA)
-- No heavy NLP dependencies
-
----
-
-## 8. AI Rules (for code generation)
-- Follow the architecture and naming conventions in this plan.
+## 10. AI Rules (for code generation)
+- Maintain consistency with the original Story Builder architecture.
+- Keep scoring deterministic and explainable.
+- Keep NLP heuristics lightweight.
+- When generating UI, ensure the story and criteria phases feel unified.
+- When generating export logic, ensure formatting is clean and Confluence‑friendly.
 - Ask for clarification if a requirement is ambiguous.
-- Never invent new game mechanics without approval.
-- Keep modules small and pure unless state is required.
-- When generating UI, prioritize clarity and simplicity.
-- When generating scoring logic, keep it deterministic.
-- When generating NLP heuristics, keep them lightweight and explainable.
 - Always generate tests for new modules unless told otherwise.
 
 ---
 
-## 9. Glossary
-- **User Story**: A structured requirement in agile format.
-- **Persona**: The “As a…” role.
-- **Value Statement**: The “So that…” outcome.
-- **NLP**: Natural Language Processing, used lightly for scoring.
+## 11. Glossary
+- **Acceptance Criteria**: Testable conditions that define when a story is complete.
+- **Gherkin**: A structured format using Given/When/Then.
+- **Export Block**: Combined story + criteria text for pasting into Confluence.
 
 ---
 
-## 10. Future Extensions
-- AI‑powered story rewriting
-- Team mode for agile workshops
-- Integration with Jira, Azure DevOps, Linear
-- Story quality leaderboard for teams
+## 12. Future Extensions
+- AI‑suggested acceptance criteria
+- Criteria rewriting challenges
+- Team mode for collaborative refinement
+- Integration with Confluence API for direct publishing
