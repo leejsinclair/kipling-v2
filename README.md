@@ -2,7 +2,7 @@
 
 A gamified learning application that helps agile teams write better user stories through interactive practice and instant feedback.
 
-![Agile Story Builder](https://github.com/user-attachments/assets/295b85ce-307f-4d66-a162-f488835dbff8)
+![Agile Story Builder](https://github.com/user-attachments/assets/829d575a-0d2c-4926-897f-b436607bdf9f)
 
 ## 🎯 Features
 
