@@ -41,7 +41,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const formatExamples = {
     gherkin: {
       title: 'Gherkin Format',
-      example: 'Given I am logged in\nWhen I click the export button\nThen I see a download confirmation'
+      example: 'Given I am logged in as an admin\nWhen I click the export button\nThen I see a download confirmation message'
     },
     bullet: {
       title: 'Bullet-Point Format',
@@ -122,10 +122,10 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
                 placeholder={
                   format === 'gherkin'
-                    ? index === 0 ? 'Given...' : index === 1 ? 'When...' : 'Then...'
+                    ? 'Given [context]\nWhen [action]\nThen [outcome]'
                     : 'The system/user must...'
                 }
-                rows={2}
+                rows={format === 'gherkin' ? 3 : 2}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 required={index === 0}
               />

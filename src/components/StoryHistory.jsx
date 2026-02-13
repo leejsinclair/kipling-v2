@@ -41,11 +41,11 @@ export default function StoryHistory({ stories, onExport }) {
               </div>
               <div className="ml-4">
                 <div className={`text-2xl font-bold ${
-                  story.score >= 50 ? 'text-green-600' : 
-                  story.score >= 35 ? 'text-yellow-600' : 
+                  (story.combinedScore || story.score || 0) >= 50 ? 'text-green-600' : 
+                  (story.combinedScore || story.score || 0) >= 35 ? 'text-yellow-600' : 
                   'text-red-600'
                 }`}>
-                  {story.score}
+                  {story.combinedScore || story.score || 0}
                 </div>
                 <div className="text-xs text-gray-500 text-center">pts</div>
               </div>
