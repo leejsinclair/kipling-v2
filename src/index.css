@@ -113,13 +113,73 @@
 body,
 header,
 footer,
-.card,
-.bg-white,
-.dark\\:bg-slate-800,
-.dark\\:bg-gray-800,
-.border-gray-200,
-.dark\\:border-gray-700 {
+.card {
   transition: background-color 200ms ease-in-out, 
               border-color 200ms ease-in-out,
               color 200ms ease-in-out;
+}
+
+/* Apply theme-specific overrides for mixed theme */
+.theme-mixed {
+  --tw-bg-opacity: 1;
+}
+
+.theme-mixed header {
+  background-color: var(--header-bg) !important;
+}
+
+.theme-mixed h1,
+.theme-mixed h2,
+.theme-mixed h3 {
+  color: var(--text-primary) !important;
+}
+
+.theme-mixed p {
+  color: var(--text-secondary) !important;
+}
+
+.theme-mixed .bg-gradient-to-br {
+  background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-via), var(--bg-gradient-to)) !important;
+}
+
+/* Apply theme-specific overrides for dark theme using CSS variables */
+.theme-dark {
+  --tw-bg-opacity: 1;
+}
+
+.theme-dark header {
+  background-color: var(--header-bg) !important;
+}
+
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark h3 {
+  color: var(--text-primary) !important;
+}
+
+.theme-dark p {
+  color: var(--text-secondary) !important;
+}
+
+.theme-dark .bg-gradient-to-br {
+  background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-via), var(--bg-gradient-to)) !important;
+}
+
+/* Apply theme-specific overrides for light theme using CSS variables */
+.theme-light header {
+  background-color: var(--header-bg);
+}
+
+.theme-light h1,
+.theme-light h2,
+.theme-light h3 {
+  color: var(--text-primary);
+}
+
+.theme-light p {
+  color: var(--text-secondary);
+}
+
+.theme-light .bg-gradient-to-br {
+  background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-via), var(--bg-gradient-to));
 }
