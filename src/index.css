@@ -28,6 +28,33 @@
   --header-shadow: rgba(0, 0, 0, 0.05);
 }
 
+/* Light Theme - Explicit for consistency */
+.theme-light {
+  --bg-primary: #fefefe;
+  --bg-secondary: #f9fafb;
+  --bg-gradient-from: #eff6ff;
+  --bg-gradient-via: #faf5ff;
+  --bg-gradient-to: #fdf2f8;
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  
+  --border-color: #e5e7eb;
+  --border-dark: #d1d5db;
+  
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  
+  --header-bg: #ffffff;
+  --header-shadow: rgba(0, 0, 0, 0.05);
+}
+
 /* Dark Theme */
 .theme-dark {
   --bg-primary: #0f172a;
@@ -82,8 +109,16 @@
   --header-shadow: rgba(0, 0, 0, 0.2);
 }
 
-/* Smooth transitions for theme changes */
-* {
+/* Smooth transitions for theme changes - applied to specific properties only */
+body,
+header,
+footer,
+.card,
+.bg-white,
+.dark\\:bg-slate-800,
+.dark\\:bg-gray-800,
+.border-gray-200,
+.dark\\:border-gray-700 {
   transition: background-color 200ms ease-in-out, 
               border-color 200ms ease-in-out,
               color 200ms ease-in-out;

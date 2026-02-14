@@ -36,9 +36,8 @@ export const ThemeProvider = ({ children }) => {
     return theme;
   }, [theme, getSystemTheme]);
 
-  // Apply theme to document
-  useEffect(() => {
-    const resolvedTheme = getResolvedTheme();
+  // Apply theme classes to document
+  const applyThemeClasses = useCallback((resolvedTheme) => {
     const root = document.documentElement;
     
     // Remove all theme classes
@@ -56,7 +55,13 @@ export const ThemeProvider = ({ children }) => {
     } else {
       root.classList.remove('dark');
     }
-  }, [theme, getResolvedTheme]);
+  }, []);
+
+  // Apply theme to document
+  useEffect(() => {
+    const resolvedTheme = getResolvedTheme();
+    applyThemeClasses(resolvedTheme);
+  }, [theme, getResolvedTheme, applyThemeClasses]);
 
   // Listen for system theme changes when in system mode
   useEffect(() => {
@@ -65,22 +70,12 @@ export const ThemeProvider = ({ children }) => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
       const resolvedTheme = getSystemTheme();
-      const root = document.documentElement;
-      root.classList.remove('theme-light', 'theme-dark', 'theme-mixed');
-      root.classList.add(`theme-${resolvedTheme}`);
-      root.setAttribute('data-theme', resolvedTheme);
-      
-      // Apply dark class for Tailwind
-      if (resolvedTheme === 'dark') {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
+      applyThemeClasses(resolvedTheme);
     };
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme, getSystemTheme]);
+  }, [theme, getSystemTheme, applyThemeClasses]);
 
   // Save theme preference to localStorage
   useEffect(() => {
