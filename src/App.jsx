@@ -10,6 +10,7 @@ import CriteriaScoreBreakdown from './components/CriteriaScoreBreakdown';
 import CriteriaFeedbackPanel from './components/CriteriaFeedbackPanel';
 import StoryAndCriteriaExport from './components/StoryAndCriteriaExport';
 import CombinedScoreSummary from './components/CombinedScoreSummary';
+import ThemeSwitcher from './components/ThemeSwitcher';
 import { scoreStory, checkAchievements } from './scoringEngine';
 import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
 
@@ -158,16 +159,21 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            📖 Agile Story Builder
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Learn to write better user stories through gamified practice
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                📖 Agile Story Builder
+              </h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">
+                Learn to write better user stories through gamified practice
+              </p>
+            </div>
+            <ThemeSwitcher />
+          </div>
         </div>
       </header>
 
@@ -333,9 +339,9 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white mt-16 border-t border-gray-200">
+      <footer className="bg-white dark:bg-slate-800 mt-16 border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-gray-600 dark:text-gray-300">
             Built with React & Tailwind CSS • Helping teams write better user stories
           </p>
         </div>

@@ -1,1 +1,90 @@
 @import "tailwindcss";
+
+/* Theme Variables */
+:root {
+  /* Default Light Theme */
+  --bg-primary: #fefefe;
+  --bg-secondary: #f9fafb;
+  --bg-gradient-from: #eff6ff;
+  --bg-gradient-via: #faf5ff;
+  --bg-gradient-to: #fdf2f8;
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  
+  --border-color: #e5e7eb;
+  --border-dark: #d1d5db;
+  
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  
+  --accent-blue: #2563eb;
+  --accent-purple: #7c3aed;
+  --accent-pink: #db2777;
+  --accent-green: #059669;
+  
+  --header-bg: #ffffff;
+  --header-shadow: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark Theme */
+.theme-dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-gradient-from: #1e293b;
+  --bg-gradient-via: #334155;
+  --bg-gradient-to: #475569;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  
+  --border-color: #334155;
+  --border-dark: #475569;
+  
+  --card-bg: #1e293b;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+  
+  --accent-blue: #60a5fa;
+  --accent-purple: #a78bfa;
+  --accent-pink: #f472b6;
+  --accent-green: #34d399;
+  
+  --header-bg: #1e293b;
+  --header-shadow: rgba(0, 0, 0, 0.3);
+}
+
+/* Mixed Theme - Playful Hybrid */
+.theme-mixed {
+  --bg-primary: #fefefe;
+  --bg-secondary: #1e293b;
+  --bg-gradient-from: #eff6ff;
+  --bg-gradient-via: #334155;
+  --bg-gradient-to: #fdf2f8;
+  
+  --text-primary: #111827;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  --border-color: #cbd5e1;
+  --border-dark: #94a3b8;
+  
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.15);
+  
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-pink: #ec4899;
+  --accent-green: #10b981;
+  
+  --header-bg: #1e293b;
+  --header-shadow: rgba(0, 0, 0, 0.2);
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 200ms ease-in-out, 
+              border-color 200ms ease-in-out,
+              color 200ms ease-in-out;
+}
