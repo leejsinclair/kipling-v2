@@ -165,6 +165,33 @@ footer,
   background: linear-gradient(to bottom right, var(--bg-gradient-from), var(--bg-gradient-via), var(--bg-gradient-to)) !important;
 }
 
+/* Dark mode card backgrounds */
+.theme-dark .bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+/* Dark mode borders */
+.theme-dark .border-gray-200 {
+  border-color: var(--border-color) !important;
+}
+
+/* Dark mode text on cards - ensure readability */
+.theme-dark label {
+  color: var(--text-primary) !important;
+}
+
+.theme-dark input,
+.theme-dark textarea {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.theme-dark input::placeholder,
+.theme-dark textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
 /* Apply theme-specific overrides for light theme using CSS variables */
 .theme-light header {
   background-color: var(--header-bg);
