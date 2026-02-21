@@ -222,7 +222,7 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Bar */}
         <div className="mb-8">
-          <ProgressBar totalXP={totalXP} />
+          <ProgressBar totalXP={totalXP} allAchievements={allAchievements} />
         </div>
 
         {/* Phase 1: Story Form */}

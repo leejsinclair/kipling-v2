@@ -2,7 +2,14 @@
 
 A gamified learning application that helps agile teams write better user stories through interactive practice and instant feedback.
 
-![Agile Story Builder](https://github.com/user-attachments/assets/829d575a-0d2c-4926-897f-b436607bdf9f)
+### Story View — craft your user story and track XP & badges
+![Story view with badge progress bar](https://github.com/user-attachments/assets/979e92db-3456-4590-80df-1184c2a8a257)
+
+### Acceptance Criteria View — write and score Gherkin criteria
+![Acceptance criteria view](https://github.com/user-attachments/assets/c9d8211b-0bd7-4244-8aa3-f90e0aba93f2)
+
+### Session History — modal preview with per-criterion scores
+![Session history modal preview](https://github.com/user-attachments/assets/27760dda-920a-48dc-b88e-490be0ca27d8)
 
 ## 🎯 Features
 
@@ -11,6 +18,7 @@ A gamified learning application that helps agile teams write better user stories
 - **Real-time Scoring**: Instant feedback on story quality with detailed breakdown
 - **Smart Feedback**: Lightweight NLP analysis with actionable suggestions
 - **Progress Tracking**: XP-based leveling system (Novice → Apprentice → Writer → Storyteller → Product Sage)
+- **Badge Display**: All badges shown near XP — earned badges are highlighted, locked badges are greyed out with a tooltip describing how to earn them
 - **Achievements**: Unlock badges for milestones and quality writing
 - **Story History**: Track all your stories with CSV export functionality
 - **Persistent Storage**: Progress and stories saved locally

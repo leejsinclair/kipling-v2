@@ -425,6 +425,36 @@ export function calculateProgression(totalXP) {
 }
 
 /**
+ * All possible story achievements (used for badge display)
+ */
+export const STORY_BADGES = [
+  {
+    id: 'crystal-clear',
+    emoji: '💎',
+    name: 'Crystal Clear Value',
+    description: 'Score 50+ points on a story'
+  },
+  {
+    id: 'epic-writer',
+    emoji: '✍️',
+    name: 'Epic Writer',
+    description: 'Score 55+ points on a story'
+  },
+  {
+    id: 'concise-master',
+    emoji: '✂️',
+    name: 'Concise Master',
+    description: 'Write a high-quality story in 20 words or less'
+  },
+  {
+    id: 'on-fire',
+    emoji: '🔥',
+    name: 'On Fire!',
+    description: 'Get 40+ points on three consecutive stories'
+  }
+];
+
+/**
  * Check if an achievement is earned
  */
 export function checkAchievements(score, wordCount, storyHistory = []) {
