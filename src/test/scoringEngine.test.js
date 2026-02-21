@@ -84,6 +84,17 @@ describe('scoreStory', () => {
     expect(Array.isArray(result.suggestions)).toBe(true);
   });
 
+  it('should not suggest adding action verbs when "so that" already includes one', () => {
+    const story = {
+      asA: 'house builder',
+      iWant: 'to build a strong house',
+      soThat: 'we can increase happiness'
+    };
+
+    const result = scoreStory(story);
+    expect(result.suggestions).not.toContain("Try starting your 'So that' with an action verb like 'increase', 'reduce', or 'enable'");
+  });
+
   it('should calculate total score correctly', () => {
     const story = {
       asA: 'developer',

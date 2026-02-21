@@ -38,7 +38,7 @@ const VALUE_VERBS = [
  * @param {string} storyValue - The "So that..." value statement from the story
  * @returns {Object} Score breakdown and feedback
  */
-export function scoreCriteria(criteria, storyValue = '') {
+export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherkin') {
   if (!criteria || criteria.length === 0) {
     return {
       totalScore: 0,
@@ -54,11 +54,11 @@ export function scoreCriteria(criteria, storyValue = '') {
   const suggestions = [];
 
   // Score each category
-  breakdown.format = scoreFormat(criteria);
+  breakdown.format = scoreFormat(criteria, selectedFormat);
   breakdown.testability = scoreTestability(criteria);
   breakdown.specificity = scoreSpecificity(criteria);
   breakdown.alignment = scoreAlignment(criteria, storyValue);
-  breakdown.completeness = scoreCompleteness(criteria);
+  breakdown.completeness = scoreCompleteness(criteria, selectedFormat);
 
   // Calculate total (max 55 points for criteria, matching story max)
   totalScore = breakdown.format + breakdown.testability + breakdown.specificity + 
@@ -68,7 +68,11 @@ export function scoreCriteria(criteria, storyValue = '') {
   if (breakdown.format >= 8) {
     feedback.push('Excellent format! Your criteria follow a clear structure.');
   } else if (breakdown.format < 5) {
-    feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
+    if (selectedFormat === 'bullet') {
+      feedback.push('Use consistent bullet-point structure with clear actor, action, and outcome.');
+    } else {
+      feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
+    }
   }
 
   if (breakdown.testability >= 12) {
@@ -95,7 +99,11 @@ export function scoreCriteria(criteria, storyValue = '') {
 
   // Generate suggestions
   if (breakdown.format < 8) {
-    suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
+    if (selectedFormat === 'bullet') {
+      suggestions.push('Use bullet criteria like "The system ..." or "The user can ..." with specific outcomes');
+    } else {
+      suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
+    }
   }
 
   if (breakdown.testability < 10) {
@@ -123,7 +131,7 @@ export function scoreCriteria(criteria, storyValue = '') {
  * Score format (Gherkin or bullet-point structure)
  * Max: 10 points
  */
-function scoreFormat(criteria) {
+function scoreFormat(criteria, selectedFormat = 'gherkin') {
   let score = 0;
   let gherkinCount = 0;
   let structuredCount = 0;
@@ -147,18 +155,30 @@ function scoreFormat(criteria) {
     }
   });
 
-  // Award points based on format consistency
+  // Award points based on selected format consistency
   const criteriaLength = criteria.length;
-  if (gherkinCount >= criteriaLength * 0.6) {
-    score = 10; // Consistent Gherkin format
-  } else if (gherkinCount >= criteriaLength * 0.3) {
-    score = 7; // Partial Gherkin format
-  } else if (structuredCount >= criteriaLength * 0.6) {
-    score = 8; // Consistent bullet-point format
-  } else if (structuredCount >= criteriaLength * 0.3) {
-    score = 5; // Partial structure
+  if (selectedFormat === 'bullet') {
+    if (structuredCount >= criteriaLength * 0.6) {
+      score = 10;
+    } else if (structuredCount >= criteriaLength * 0.3) {
+      score = 7;
+    } else if (gherkinCount >= criteriaLength * 0.6) {
+      score = 8;
+    } else {
+      score = 3;
+    }
   } else {
-    score = 3; // Minimal structure
+    if (gherkinCount >= criteriaLength * 0.6) {
+      score = 10;
+    } else if (gherkinCount >= criteriaLength * 0.3) {
+      score = 7;
+    } else if (structuredCount >= criteriaLength * 0.6) {
+      score = 8;
+    } else if (structuredCount >= criteriaLength * 0.3) {
+      score = 5;
+    } else {
+      score = 3;
+    }
   }
 
   return score;
@@ -252,7 +272,47 @@ function scoreAlignment(criteria, storyValue) {
  * Score completeness (Given/When/Then or equivalent coverage)
  * Max: 10 points
  */
-function scoreCompleteness(criteria) {
+function scoreCompleteness(criteria, selectedFormat = 'gherkin') {
+  if (selectedFormat === 'bullet') {
+    let score = 0;
+    let completeCriteria = 0;
+
+    criteria.forEach(criterion => {
+      const lower = criterion.toLowerCase();
+      const hasActor =
+        lower.startsWith('the system') ||
+        lower.startsWith('the user') ||
+        lower.startsWith('system') ||
+        lower.startsWith('user') ||
+        lower.startsWith('application');
+
+      const hasAction =
+        lower.includes(' must ') ||
+        lower.includes(' can ') ||
+        lower.includes(' should ') ||
+        lower.includes(' is able to ') ||
+        lower.includes(' allows ') ||
+        lower.includes(' validates ') ||
+        lower.includes(' saves ') ||
+        lower.includes(' exports ');
+
+      const hasOutcome = OBSERVABLE_PATTERNS.some(pattern => lower.includes(pattern));
+
+      if (hasActor && hasAction && hasOutcome) {
+        completeCriteria += 1;
+      }
+    });
+
+    if (completeCriteria >= Math.ceil(criteria.length * 0.6)) score += 6;
+    else if (completeCriteria >= 1) score += 4;
+    else score += 2;
+
+    if (criteria.length >= 3) score += 2;
+    if (criteria.length >= 5) score += 2;
+
+    return Math.min(10, score);
+  }
+
   let score = 0;
   let hasContext = false;
   let hasAction = false;

@@ -35,6 +35,31 @@ describe('scoreCriteria', () => {
     expect(result.breakdown.format).toBeGreaterThanOrEqual(5);
   });
 
+  it('should score bullet format against bullet rules when selected', () => {
+    const criteria = [
+      'The system must validate user input',
+      'The user can export data as CSV',
+      'The page displays error messages for invalid data'
+    ];
+
+    const result = scoreCriteria(criteria, '', 'bullet');
+    expect(result.breakdown.format).toBeGreaterThanOrEqual(8);
+    expect(result.feedback).not.toContain('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
+  });
+
+  it('should favor gherkin formatting when gherkin is selected', () => {
+    const criteria = [
+      'The system must validate user input',
+      'The user can export data as CSV',
+      'The page displays error messages for invalid data'
+    ];
+
+    const gherkinSelected = scoreCriteria(criteria, '', 'gherkin');
+    const bulletSelected = scoreCriteria(criteria, '', 'bullet');
+
+    expect(bulletSelected.breakdown.format).toBeGreaterThanOrEqual(gherkinSelected.breakdown.format);
+  });
+
   it('should reward testable, observable outcomes', () => {
     const criteria = [
       'The system displays a success message',
