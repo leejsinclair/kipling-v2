@@ -18,7 +18,7 @@ const FORMAT_HINTS = {
 
 const TEMPLATE_STORAGE_KEY = 'acceptanceCriteriaTemplates';
 const MIN_CRITERIA_FIELDS = 3;
-const MAX_CRITERIA_FIELDS = 5;
+const MAX_CRITERIA_FIELDS = 7;
 
 const DEFAULT_TEMPLATES = {
   gherkin: [
@@ -419,9 +419,13 @@ function getBreakdownTooltip(key, data, format) {
   }
 }
 
-export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
-  const [criteria, setCriteria] = useState(['', '', '']);
-  const [format, setFormat] = useState('gherkin');
+export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCriteriaData = null }) {
+  const [criteria, setCriteria] = useState(() => normalizeCriteria(
+    Array.isArray(initialCriteriaData?.criteria) ? initialCriteriaData.criteria : []
+  ));
+  const [format, setFormat] = useState(() => (
+    initialCriteriaData?.format === 'bullet' ? 'bullet' : 'gherkin'
+  ));
   const [hints, setHints] = useState({});
   const [ratings, setRatings] = useState({});
   const [savedTemplates, setSavedTemplates] = useState(() => loadSavedTemplates());
@@ -810,7 +814,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           onClick={addCriterion}
           className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          + Add Another Criterion (max 5)
+          + Add Another Criterion (max 7)
         </button>
       )}
 
@@ -818,25 +822,25 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
       <div className="flex items-center justify-between pt-2">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Criteria filled: <span className="font-semibold">{filledCount}</span>
-          <span className="text-gray-400 dark:text-gray-500 ml-2">(recommended: 3-5)</span>
+          <span className="text-gray-400 dark:text-gray-500 ml-2">(recommended: 3-7)</span>
         </div>
       </div>
 
       {/* Submit Buttons */}
       <div className="flex gap-3 pt-2">
         <button
-          type="submit"
-          className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={filledCount === 0}
-        >
-          Score My Criteria
-        </button>
-        <button
           type="button"
           onClick={handleReset}
           className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-md font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
         >
           Reset
+        </button>
+        <button
+          type="submit"
+          className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={filledCount === 0}
+        >
+          Score My Criteria
         </button>
       </div>
     </form>

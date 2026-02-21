@@ -16,6 +16,10 @@ import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
 function App() {
   const [phase, setPhase] = useState('story'); // 'story', 'criteria', or 'complete'
   const [currentStory, setCurrentStory] = useState(null);
+  const [draftStory, setDraftStory] = useState(null);
+  const [draftCriteria, setDraftCriteria] = useState(null);
+  const [storyFormVersion, setStoryFormVersion] = useState(0);
+  const [criteriaFormVersion, setCriteriaFormVersion] = useState(0);
   const [result, setResult] = useState(null);
   const [criteriaResult, setCriteriaResult] = useState(null);
   const [submittedCriteria, setSubmittedCriteria] = useState(null);
@@ -49,6 +53,8 @@ function App() {
     const scoreResult = scoreStory(story);
     setResult(scoreResult);
     setCurrentStory(story);
+    setDraftCriteria(null);
+    setCriteriaFormVersion(prev => prev + 1);
     
     // Add XP for story
     setTotalXP(prev => prev + scoreResult.totalScore);
@@ -128,6 +134,10 @@ function App() {
   const handleStartNew = () => {
     setPhase('story');
     setCurrentStory(null);
+    setDraftStory(null);
+    setDraftCriteria(null);
+    setStoryFormVersion(prev => prev + 1);
+    setCriteriaFormVersion(prev => prev + 1);
     setResult(null);
     setCriteriaResult(null);
     setSubmittedCriteria(null);
@@ -135,27 +145,49 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleExport = () => {
-    const csv = [
-      ['Date', 'As a', 'I want', 'So that', 'Story Score', 'Criteria Score', 'Combined Score'].join(','),
-      ...storyHistory.map(s => [
-        new Date(s.timestamp).toISOString(),
-        `"${s.asA}"`,
-        `"${s.iWant}"`,
-        `"${s.soThat}"`,
-        s.storyScore || s.score || 0,
-        s.criteriaScore || 0,
-        s.combinedScore || s.score || 0
-      ].join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `user-stories-${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleLoadStoryFromHistory = (story) => {
+    setPhase('story');
+    setCurrentStory(null);
+    setDraftStory({
+      asA: story.asA || '',
+      iWant: story.iWant || '',
+      soThat: story.soThat || ''
+    });
+    setDraftCriteria(null);
+    setStoryFormVersion(prev => prev + 1);
+    setCriteriaFormVersion(prev => prev + 1);
+    setResult(null);
+    setCriteriaResult(null);
+    setSubmittedCriteria(null);
+    setAchievements([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoadCriteriaFromHistory = (story) => {
+    setCurrentStory({
+      asA: story.asA || '',
+      iWant: story.iWant || '',
+      soThat: story.soThat || ''
+    });
+    setDraftCriteria({
+      criteria: Array.isArray(story.criteria) ? story.criteria : [],
+      format: story.criteriaFormat === 'bullet' ? 'bullet' : 'gherkin'
+    });
+    setCriteriaFormVersion(prev => prev + 1);
+    setPhase('criteria');
+    setResult(null);
+    setCriteriaResult(null);
+    setSubmittedCriteria(null);
+    setAchievements([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleRemoveHistoryItem = (timestamp) => {
+    setStoryHistory(prev => prev.filter((item) => item.timestamp !== timestamp));
+  };
+
+  const handleClearHistory = () => {
+    setStoryHistory([]);
   };
 
   return (
@@ -234,7 +266,11 @@ function App() {
         {/* Phase 1: Story Form */}
         {phase === 'story' && (
           <div className="mb-8">
-            <StoryForm onSubmit={handleSubmit} />
+            <StoryForm
+              key={storyFormVersion}
+              onSubmit={handleSubmit}
+              initialStory={draftStory}
+            />
           </div>
         )}
 
@@ -253,8 +289,10 @@ function App() {
         {phase === 'criteria' && currentStory && (
           <div className="mb-8">
             <AcceptanceCriteriaForm 
+              key={criteriaFormVersion}
               onSubmit={handleCriteriaSubmit}
               storyText={`As a ${currentStory.asA}, I want ${currentStory.iWant} so that ${currentStory.soThat}.`}
+              initialCriteriaData={draftCriteria}
             />
           </div>
         )}
@@ -312,7 +350,13 @@ function App() {
         {/* Story History */}
         {storyHistory.length > 0 && (
           <div id="session-history" className="mb-8">
-            <StoryHistory stories={storyHistory} onExport={handleExport} />
+            <StoryHistory
+              stories={storyHistory}
+              onRemoveStory={handleRemoveHistoryItem}
+              onClearHistory={handleClearHistory}
+              onLoadStory={handleLoadStoryFromHistory}
+              onLoadCriteria={handleLoadCriteriaFromHistory}
+            />
           </div>
         )}
 

@@ -106,6 +106,24 @@ describe('StoryForm', () => {
     expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument();
   });
 
+  it('should prefill fields when initialStory is provided', () => {
+    const mockSubmit = vi.fn();
+    render(
+      <StoryForm
+        onSubmit={mockSubmit}
+        initialStory={{
+          asA: 'product owner',
+          iWant: 'to reuse a previous story',
+          soThat: 'I can iterate faster'
+        }}
+      />
+    );
+
+    expect(screen.getByLabelText(/as a/i)).toHaveValue('product owner');
+    expect(screen.getByLabelText(/i want/i)).toHaveValue('to reuse a previous story');
+    expect(screen.getByLabelText(/so that/i)).toHaveValue('I can iterate faster');
+  });
+
   it('should show a hint on blur when "As a" field has a generic value', async () => {
     const user = userEvent.setup();
     const mockSubmit = vi.fn();
