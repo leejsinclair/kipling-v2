@@ -71,9 +71,6 @@ export default function StoryForm({ onSubmit }) {
     setHints(prev => ({ ...prev, [field]: hintFns[field](value) }));
   };
   
-  const fieldScoreColor = (score) =>
-    score >= 8 ? 'text-green-600 dark:text-green-400' : score >= 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
-
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 space-y-4">
       <div className="mb-4">
