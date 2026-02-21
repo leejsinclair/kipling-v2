@@ -10,7 +10,6 @@ import CriteriaScoreBreakdown from './components/CriteriaScoreBreakdown';
 import CriteriaFeedbackPanel from './components/CriteriaFeedbackPanel';
 import StoryAndCriteriaExport from './components/StoryAndCriteriaExport';
 import CombinedScoreSummary from './components/CombinedScoreSummary';
-import ThemeSwitcher from './components/ThemeSwitcher';
 import { scoreStory, checkAchievements } from './scoringEngine';
 import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
 
@@ -182,7 +181,6 @@ function App() {
                   📜 Session History ({storyHistory.length})
                 </button>
               )}
-              <ThemeSwitcher />
             </div>
           </div>
         </div>
