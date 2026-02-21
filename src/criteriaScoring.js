@@ -53,7 +53,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
     };
   }
 
-  let totalScore = 0;
+  let totalScore;
   const breakdown = {};
   const feedback = [];
   const suggestions = [];
@@ -139,7 +139,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
  * @param {string} selectedFormat - 'gherkin' or 'bullet'
  */
 function scoreFormat(criteria, selectedFormat = 'gherkin') {
-  let score = 0;
+  let score;
   let gherkinCount = 0;
   let structuredCount = 0;
 
@@ -387,7 +387,7 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
   let formatScore = 0;
   let testabilityScore = 0;
   let specificityScore = 0;
-  let alignmentScore = 0;
+  let alignmentScore;
   const feedback = [];
   const wordCount = criterion.trim().split(/\s+/).length;
 
