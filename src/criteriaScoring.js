@@ -36,9 +36,10 @@ const VALUE_VERBS = [
  * Score acceptance criteria
  * @param {Array<string>} criteria - Array of acceptance criteria strings
  * @param {string} storyValue - The "So that..." value statement from the story
+ * @param {string} selectedFormat - The format chosen by the user ('gherkin' or 'bullet')
  * @returns {Object} Score breakdown and feedback
  */
-export function scoreCriteria(criteria, storyValue = '') {
+export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherkin') {
   if (!criteria || criteria.length === 0) {
     return {
       totalScore: 0,
@@ -54,7 +55,7 @@ export function scoreCriteria(criteria, storyValue = '') {
   const suggestions = [];
 
   // Score each category
-  breakdown.format = scoreFormat(criteria);
+  breakdown.format = scoreFormat(criteria, selectedFormat);
   breakdown.testability = scoreTestability(criteria);
   breakdown.specificity = scoreSpecificity(criteria);
   breakdown.alignment = scoreAlignment(criteria, storyValue);
@@ -122,8 +123,10 @@ export function scoreCriteria(criteria, storyValue = '') {
 /**
  * Score format (Gherkin or bullet-point structure)
  * Max: 10 points
+ * @param {Array<string>} criteria
+ * @param {string} selectedFormat - 'gherkin' or 'bullet'
  */
-function scoreFormat(criteria) {
+function scoreFormat(criteria, selectedFormat = 'gherkin') {
   let score = 0;
   let gherkinCount = 0;
   let structuredCount = 0;
@@ -147,18 +150,32 @@ function scoreFormat(criteria) {
     }
   });
 
-  // Award points based on format consistency
   const criteriaLength = criteria.length;
-  if (gherkinCount >= criteriaLength * 0.6) {
-    score = 10; // Consistent Gherkin format
-  } else if (gherkinCount >= criteriaLength * 0.3) {
-    score = 7; // Partial Gherkin format
-  } else if (structuredCount >= criteriaLength * 0.6) {
-    score = 8; // Consistent bullet-point format
-  } else if (structuredCount >= criteriaLength * 0.3) {
-    score = 5; // Partial structure
+
+  if (selectedFormat === 'bullet') {
+    // Score based on bullet-point structure when bullet format is selected
+    if (structuredCount >= criteriaLength * 0.6) {
+      score = 10; // Consistent bullet-point format
+    } else if (structuredCount >= criteriaLength * 0.3) {
+      score = 7; // Partial bullet-point structure
+    } else if (gherkinCount >= criteriaLength * 0.3) {
+      score = 5; // Using Gherkin when bullet was selected
+    } else {
+      score = 3; // Minimal structure
+    }
   } else {
-    score = 3; // Minimal structure
+    // Score based on Gherkin structure when gherkin format is selected (default)
+    if (gherkinCount >= criteriaLength * 0.6) {
+      score = 10; // Consistent Gherkin format
+    } else if (gherkinCount >= criteriaLength * 0.3) {
+      score = 7; // Partial Gherkin format
+    } else if (structuredCount >= criteriaLength * 0.6) {
+      score = 5; // Using bullet when Gherkin was selected
+    } else if (structuredCount >= criteriaLength * 0.3) {
+      score = 4; // Partial bullet structure
+    } else {
+      score = 3; // Minimal structure
+    }
   }
 
   return score;

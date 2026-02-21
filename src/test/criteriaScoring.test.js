@@ -97,6 +97,40 @@ describe('scoreCriteria', () => {
     const result = scoreCriteria(criteria, 'I can save time and improve efficiency');
     expect(result.totalScore).toBeLessThanOrEqual(55);
   });
+
+  it('should give full format score for bullet criteria when bullet format is selected', () => {
+    const criteria = [
+      'The system must validate user input before submission',
+      'The user can export the results as a CSV file',
+      'The system must display an error message for invalid data',
+    ];
+
+    const result = scoreCriteria(criteria, '', 'bullet');
+    expect(result.breakdown.format).toBe(10);
+  });
+
+  it('should give full format score for Gherkin criteria when gherkin format is selected', () => {
+    const criteria = [
+      'Given I am logged in as an admin',
+      'When I click the export button',
+      'Then I see a download confirmation message',
+    ];
+
+    const result = scoreCriteria(criteria, '', 'gherkin');
+    expect(result.breakdown.format).toBe(10);
+  });
+
+  it('should score lower when bullet criteria are submitted with gherkin format selected', () => {
+    const criteria = [
+      'The system must validate user input',
+      'The user can export data as CSV',
+      'The system must display error messages',
+    ];
+
+    const gherkinResult = scoreCriteria(criteria, '', 'gherkin');
+    const bulletResult = scoreCriteria(criteria, '', 'bullet');
+    expect(bulletResult.breakdown.format).toBeGreaterThan(gherkinResult.breakdown.format);
+  });
 });
 
 describe('detectFormat', () => {

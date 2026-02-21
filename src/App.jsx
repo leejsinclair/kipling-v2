@@ -80,8 +80,8 @@ function App() {
   };
 
   const handleCriteriaSubmit = (criteriaData) => {
-    const { criteria } = criteriaData;
-    const scoreResult = scoreCriteria(criteria, currentStory?.soThat);
+    const { criteria, format } = criteriaData;
+    const scoreResult = scoreCriteria(criteria, currentStory?.soThat, format);
     setCriteriaResult(scoreResult);
     setSubmittedCriteria(criteria);
     
@@ -172,7 +172,17 @@ function App() {
                 Learn to write better user stories through gamified practice
               </p>
             </div>
-            <ThemeSwitcher />
+            <div className="flex items-center gap-4">
+              {storyHistory.length > 0 && (
+                <button
+                  onClick={() => document.getElementById('session-history')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  📜 Session History ({storyHistory.length})
+                </button>
+              )}
+              <ThemeSwitcher />
+            </div>
           </div>
         </div>
       </header>
@@ -302,7 +312,7 @@ function App() {
 
         {/* Story History */}
         {storyHistory.length > 0 && (
-          <div className="mb-8">
+          <div id="session-history" className="mb-8">
             <StoryHistory stories={storyHistory} onExport={handleExport} />
           </div>
         )}
