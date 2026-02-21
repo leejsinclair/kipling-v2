@@ -121,6 +121,12 @@ export default function StoryHistory({
     alignment: 'Alignment'
   };
 
+  const escapeHtml = (text) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
   const buildGherkinLine = (line) => {
     const trimmed = line.trim();
     if (!trimmed) return '';
@@ -215,7 +221,7 @@ export default function StoryHistory({
               if (!isGherkin) {
                 return `
                   <h5>Criterion ${criterionIndex + 1}</h5>
-                  <p>${criterion.trim()}</p>
+                  <p>${escapeHtml(criterion.trim())}</p>
                 `;
               }
 
@@ -226,13 +232,13 @@ export default function StoryHistory({
                 .map((line) => {
                   const keywordMatch = line.match(/^(Given|When|Then|And)\b/i);
                   if (!keywordMatch) {
-                    return `<p>${line}</p>`;
+                    return `<p>${escapeHtml(line)}</p>`;
                   }
 
                   const keyword = keywordMatch[1];
                   const rest = line.replace(/^(Given|When|Then|And)\b\s*/i, '');
                   const indentStyle = keyword.toLowerCase() === 'and' ? ' style="margin-left: 1.5rem;"' : '';
-                  return `<p${indentStyle}><strong>${keyword}</strong>${rest ? ` ${rest}` : ''}</p>`;
+                  return `<p${indentStyle}><strong>${escapeHtml(keyword)}</strong>${rest ? ` ${escapeHtml(rest)}` : ''}</p>`;
                 })
                 .join('');
 
@@ -245,9 +251,9 @@ export default function StoryHistory({
         return `
           ${index > 0 ? '<hr />' : ''}
           <h2>Story ${index + 1}</h2>
-          <p><strong>As a</strong> ${story.asA || ''}</p>
-          <p><strong>I want</strong> ${story.iWant || ''}</p>
-          <p><strong>So that</strong> ${story.soThat || ''}</p>
+          <p><strong>As a</strong> ${escapeHtml(story.asA || '')}</p>
+          <p><strong>I want</strong> ${escapeHtml(story.iWant || '')}</p>
+          <p><strong>So that</strong> ${escapeHtml(story.soThat || '')}</p>
           <h3>Acceptance Criteria</h3>
           ${criteriaHtml}
         `;

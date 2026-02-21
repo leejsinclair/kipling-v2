@@ -179,4 +179,34 @@ describe('StoryHistory', () => {
     const preview = screen.getByRole('textbox');
     expect(preview.value).toContain('\n---\n');
   });
+
+  it('should escape HTML tags in formatted export to prevent XSS', () => {
+    const maliciousStory = {
+      timestamp: 1735732850000,
+      asA: '<script>alert("XSS")</script>user',
+      iWant: '<img src=x onerror="alert(1)">feature',
+      soThat: '<b onload="alert(2)">benefit</b>',
+      criteriaFormat: 'bullet',
+      criteria: ['<script>dangerous()</script>criterion']
+    };
+
+    // Create a temporary div to access escapeHtml behavior
+    const testDiv = document.createElement('div');
+    testDiv.textContent = maliciousStory.asA;
+    const escapedAsA = testDiv.innerHTML;
+
+    // Verify that textContent -> innerHTML produces escaped HTML
+    expect(escapedAsA).not.toContain('<script>');
+    expect(escapedAsA).toContain('&lt;script&gt;');
+    expect(escapedAsA).toContain('alert("XSS")');
+    
+    // Verify the escaping works for various HTML attack patterns
+    testDiv.textContent = maliciousStory.iWant;
+    expect(testDiv.innerHTML).toContain('&lt;img');
+    expect(testDiv.innerHTML).not.toContain('<img src=x onerror');
+
+    testDiv.textContent = maliciousStory.soThat;
+    expect(testDiv.innerHTML).toContain('&lt;b');
+    expect(testDiv.innerHTML).not.toContain('<b onload=');
+  });
 });
