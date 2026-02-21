@@ -119,6 +119,40 @@ describe('AcceptanceCriteriaForm', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
+  it('should prefill criteria and format when initialCriteriaData is provided', () => {
+    render(
+      <AcceptanceCriteriaForm
+        onSubmit={vi.fn()}
+        initialCriteriaData={{
+          format: 'bullet',
+          criteria: [
+            'The system must load criteria from history',
+            'The user can edit loaded criteria before scoring'
+          ]
+        }}
+      />
+    );
+
+    expect(screen.getByRole('checkbox', { name: /bullet point format/i })).toBeChecked();
+    expect(getCriterionField(1)).toHaveValue('The system must load criteria from history');
+    expect(getCriterionField(2)).toHaveValue('The user can edit loaded criteria before scoring');
+  });
+
+  it('should allow adding criteria fields up to 7', async () => {
+    const user = userEvent.setup();
+    render(<AcceptanceCriteriaForm onSubmit={vi.fn()} />);
+
+    const getAddButton = () => screen.queryByRole('button', { name: /add another criterion/i });
+
+    for (let i = 0; i < 4; i += 1) {
+      await user.click(getAddButton());
+    }
+
+    expect(getCriterionField(7)).toBeInTheDocument();
+    expect(getAddButton()).not.toBeInTheDocument();
+    expect(screen.getByText(/recommended: 3-7/i)).toBeInTheDocument();
+  });
+
   it('should apply default GUI template for gherkin format', async () => {
     const user = userEvent.setup();
     render(<AcceptanceCriteriaForm onSubmit={vi.fn()} />);

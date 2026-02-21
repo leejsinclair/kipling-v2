@@ -45,10 +45,10 @@ function getSoThatHint(value) {
   return '';
 }
 
-export default function StoryForm({ onSubmit }) {
-  const [asA, setAsA] = useState('');
-  const [iWant, setIWant] = useState('');
-  const [soThat, setSoThat] = useState('');
+export default function StoryForm({ onSubmit, initialStory = null }) {
+  const [asA, setAsA] = useState(() => initialStory?.asA || '');
+  const [iWant, setIWant] = useState(() => initialStory?.iWant || '');
+  const [soThat, setSoThat] = useState(() => initialStory?.soThat || '');
   const [hints, setHints] = useState({ asA: '', iWant: '', soThat: '' });
   const [soThatRating, setSoThatRating] = useState(null);
   
