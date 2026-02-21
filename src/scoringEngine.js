@@ -285,7 +285,7 @@ export function scoreSoThatStatement(soThat) {
   }
 
   // 3. Value phrases (0-9 points)
-  let valueScore = 0;
+  let valueScore;
   if (valuePhrasesFound.length > 0) {
     valueScore = Math.min(9, valuePhrasesFound.length * 3);
     score += valueScore;
