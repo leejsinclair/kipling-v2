@@ -581,6 +581,36 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
 }
 
 /**
+ * All possible criteria achievements (used for badge display)
+ */
+export const CRITERIA_BADGES = [
+  {
+    id: 'testability-master',
+    emoji: '🧪',
+    name: 'Testability Master',
+    description: 'Score 50+ points on acceptance criteria'
+  },
+  {
+    id: 'gherkin-guru',
+    emoji: '🥒',
+    name: 'Gherkin Guru',
+    description: 'Achieve a perfect format score on acceptance criteria'
+  },
+  {
+    id: 'observable-outcomes',
+    emoji: '🔭',
+    name: 'Observable Outcomes',
+    description: 'Achieve an excellent testability score (14+)'
+  },
+  {
+    id: 'comprehensive-coverage',
+    emoji: '🗂️',
+    name: 'Comprehensive Coverage',
+    description: 'Write 5 or more high-quality acceptance criteria'
+  }
+];
+
+/**
  * Check for criteria-specific achievements
  */
 export function checkCriteriaAchievements(criteriaScore, criteriaCount, breakdown) {
