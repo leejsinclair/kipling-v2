@@ -202,7 +202,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 id={`criterion-${index}`}
                 value={criterion}
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
-                onBlur={(e) => handleBlur(index, e.target.value)}
+                onBlur={() => handleBlur(index, criterion)}
                 placeholder={
                   format === 'gherkin'
                     ? 'Given [context]\nWhen [action]\nThen [outcome]'
