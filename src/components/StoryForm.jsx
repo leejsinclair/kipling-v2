@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { scoreSoThatStatement } from '../scoringEngine';
 
 const FILLER_WORDS = ['basically', 'kind of', 'sort of', 'stuff', 'things', 'very', 'really', 'just', 'maybe', 'perhaps', 'probably'];
 const VAGUE_PHRASES = ["it's better", "it's easier", "it works", "make it better", "be better"];
@@ -49,6 +50,7 @@ export default function StoryForm({ onSubmit }) {
   const [iWant, setIWant] = useState('');
   const [soThat, setSoThat] = useState('');
   const [hints, setHints] = useState({ asA: '', iWant: '', soThat: '' });
+  const [soThatRating, setSoThatRating] = useState(null);
   
   const wordCount = `${asA} ${iWant} ${soThat}`.trim().split(/\s+/).filter(w => w).length;
   
@@ -64,11 +66,86 @@ export default function StoryForm({ onSubmit }) {
     setIWant('');
     setSoThat('');
     setHints({ asA: '', iWant: '', soThat: '' });
+    setSoThatRating(null);
   };
 
   const handleBlur = (field, value) => {
     const hintFns = { asA: getAsAHint, iWant: getIWantHint, soThat: getSoThatHint };
     setHints(prev => ({ ...prev, [field]: hintFns[field](value) }));
+    
+    // Score "So that" field on blur
+    if (field === 'soThat') {
+      const rating = scoreSoThatStatement(value);
+      setSoThatRating(rating);
+    }
+  };
+  
+  const handleSoThatChange = (value) => {
+    setSoThat(value);
+    // Clear rating when user starts editing again
+    setSoThatRating(null);
+  };
+
+  const getSoThatTooltipContent = (rating) => {
+    if (!rating) return null;
+
+    if (rating.score >= 17) {
+      // Excellent
+      return {
+        good: [
+          '"reduce response time by 50% and increase satisfaction"',
+          '"save $10,000 monthly in operational costs"',
+          '"increase conversion rate from 2% to 5%"'
+        ],
+        avoid: [
+          '"make things better" (too vague)',
+          '"increase happiness" (not business-focused)',
+          '"improve performance" (what metric?)'
+        ]
+      };
+    } else if (rating.score >= 13) {
+      // Good - needs more specificity
+      return {
+        good: [
+          'Add specific metric: "reduce response time by 50%"',
+          'Include numbers: "increase conversion rate from 2% to 5%"',
+          'Be specific: "save 10 hours per week in manual processing"'
+        ],
+        avoid: [
+          '"improve things by 20%" (20% of what?)',
+          '"increase productivity" (how measured?)',
+          'Generic percentages without context'
+        ]
+      };
+    } else if (rating.score >= 9) {
+      // Fair - needs business metrics
+      return {
+        good: [
+          'Use business metrics: response time, conversion rate, cost',
+          'Add measurable outcomes with numbers or percentages',
+          'Focus on business impact, not emotional language'
+        ],
+        avoid: [
+          '"be happier" or "feel better" (emotional)',
+          '"save time" (how much time?)',
+          'Vague statements without metrics'
+        ]
+      };
+    } else {
+      // Needs work
+      return {
+        good: [
+          'Start with action verb: reduce, increase, enable, improve',
+          'Add business metric: time, cost, revenue, conversion',
+          'Include specific numbers: "by 50%", "from X to Y"'
+        ],
+        avoid: [
+          'Emotional language: happiness, joy, peace, harmony',
+          'Vague phrases: "it\'s better", "works well"',
+          'No metrics or numbers at all'
+        ]
+      };
+    }
   };
   
   return (
@@ -115,13 +192,32 @@ export default function StoryForm({ onSubmit }) {
       </div>
       
       <div>
-        <label htmlFor="soThat" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          So that... <span className="text-red-500">*</span>
-        </label>
+        <div className="flex items-center gap-2 mb-1">
+          <label htmlFor="soThat" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            So that... <span className="text-red-500">*</span>
+          </label>
+          {soThatRating && (
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                  soThatRating.color === 'green'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : soThatRating.color === 'blue'
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    : soThatRating.color === 'yellow'
+                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                    : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                }`}
+              >
+                {soThatRating.score}/{soThatRating.maxScore} • {soThatRating.grade}
+              </span>
+            </div>
+          )}
+        </div>
         <textarea
           id="soThat"
           value={soThat}
-          onChange={(e) => setSoThat(e.target.value)}
+          onChange={(e) => handleSoThatChange(e.target.value)}
           onBlur={(e) => handleBlur('soThat', e.target.value)}
           placeholder="e.g., I can share them with my team in our backlog management tool"
           rows={3}
@@ -129,6 +225,46 @@ export default function StoryForm({ onSubmit }) {
           required
         />
         {hints.soThat && <p className="mt-1 text-xs text-amber-600">{hints.soThat}</p>}
+        {soThatRating && soThatRating.feedback && (
+          <div className="mt-1 flex items-start gap-1">
+            <p className="text-xs text-blue-600 dark:text-blue-400 flex-1">
+              💡 {soThatRating.feedback}
+            </p>
+            <div className="group relative inline-block">
+              <svg 
+                className="w-4 h-4 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-help flex-shrink-0 mt-0.5" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              {(() => {
+                const tooltipContent = getSoThatTooltipContent(soThatRating);
+                if (!tooltipContent) return null;
+                return (
+                  <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-80 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 border border-slate-700">
+                    <div className="mb-2">
+                      <div className="font-semibold text-green-400 mb-1">✓ {soThatRating.score >= 17 ? 'Excellent examples' : 'To improve'}:</div>
+                      <ul className="list-disc list-inside space-y-1 text-gray-200">
+                        {tooltipContent.good.map((item, idx) => (
+                          <li key={idx}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-red-400 mb-1">✗ Avoid:</div>
+                      <ul className="list-disc list-inside space-y-1 text-gray-200">
+                        {tooltipContent.avoid.map((item, idx) => (
+                          <li key={idx}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="flex items-center justify-between pt-2">

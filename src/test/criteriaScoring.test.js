@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { 
   scoreCriteria, 
   detectFormat, 
-  checkCriteriaAchievements 
+  checkCriteriaAchievements,
+  scoreSingleCriterion
 } from '../criteriaScoring';
 
 describe('scoreCriteria', () => {
@@ -260,5 +261,57 @@ describe('checkCriteriaAchievements', () => {
     });
     
     expect(achievements.length).toBe(0);
+  });
+});
+
+describe('scoreSingleCriterion', () => {
+  it('should return empty for empty criterion', () => {
+    const result = scoreSingleCriterion('', 'gherkin');
+    expect(result.score).toBe(0);
+    expect(result.grade).toBe('');
+  });
+
+  it('should score excellent Gherkin criterion highly', () => {
+    const result = scoreSingleCriterion(
+      'Given I am logged in\nWhen I click the export button\nThen the system displays a success message',
+      'gherkin'
+    );
+    expect(result.score).toBeGreaterThanOrEqual(9);
+    expect(result.grade).toMatch(/Excellent|Good/); // Can be Excellent (≥12) or Good (9-11) for Gherkin
+    expect(result.color).toMatch(/green|blue/);
+  });
+
+  it('should score good bullet criterion well', () => {
+    const result = scoreSingleCriterion(
+      'The system must display a validation error when invalid data is submitted',
+      'bullet'
+    );
+    expect(result.score).toBeGreaterThanOrEqual(7);
+    expect(result.grade).toMatch(/Good|Excellent/);
+  });
+
+  it('should provide feedback for incomplete Gherkin', () => {
+    const result = scoreSingleCriterion(
+      'Given I am logged in',
+      'gherkin'
+    );
+    expect(result.feedback).toContain('Given/When/Then');
+  });
+
+  it('should provide feedback for vague language', () => {
+    const result = scoreSingleCriterion(
+      'The system should maybe do something',
+      'bullet'
+    );
+    expect(result.feedback).toMatch(/vague|observable/i);
+  });
+
+  it('should penalize very short criteria', () => {
+    const result = scoreSingleCriterion(
+      'It works',
+      'bullet'
+    );
+    expect(result.score).toBeLessThan(7);
+    expect(result.feedback).toContain('Add more detail');
   });
 });

@@ -1,3 +1,46 @@
+const CATEGORY_TOOLTIPS = {
+  Format: {
+    explanation: 'Points awarded for following Gherkin format or clear bullet-point structure.',
+    examples: [
+      'Good: "Given I am logged in\nWhen I click export\nThen I see a file"',
+      'Good: "The user can export data to CSV format"',
+      'Avoid: Mixing formats or using vague sentence structure'
+    ]
+  },
+  Testability: {
+    explanation: 'Measures whether the criterion describes observable, verifiable outcomes that a tester can confirm.',
+    examples: [
+      'Good: "Then I see a success message on screen"',
+      'Good: "The system must return a 200 status code"',
+      'Avoid: "The system should be better" (not measurable)'
+    ]
+  },
+  Specificity: {
+    explanation: 'Evaluates clarity and precision of language, avoiding vague or ambiguous terms.',
+    examples: [
+      'Good: "The user receives an email within 5 minutes"',
+      'Good: "The dashboard displays the last 30 days of data"',
+      'Avoid: "It works quickly" or "The page looks good"'
+    ]
+  },
+  Alignment: {
+    explanation: 'Checks whether the criteria support the story\'s intended value and business outcome.',
+    examples: [
+      'Good: If story is about "save time," criteria mention automation or speed',
+      'Good: Criteria test the "so that" value directly',
+      'Avoid: Criteria unrelated to the story\'s purpose'
+    ]
+  },
+  Completeness: {
+    explanation: 'Assesses whether the criteria cover happy paths, error cases, and edge scenarios adequately.',
+    examples: [
+      'Good: Covers success, validation errors, and edge cases',
+      'Good: Tests both typical and boundary conditions',
+      'Avoid: Only testing one scenario or missing error handling'
+    ]
+  }
+};
+
 export default function CriteriaScoreBreakdown({ result }) {
   const { totalScore, breakdown } = result;
   
@@ -95,28 +138,51 @@ export default function CriteriaScoreBreakdown({ result }) {
 
       {/* Category Breakdown */}
       <div className="space-y-3">
-        {categories.map((category) => (
-          <div key={category.name} className="border-b border-gray-100 pb-3 last:border-0">
-            <div className="flex justify-between items-start mb-1">
-              <div>
-                <div className="font-semibold text-gray-800">{category.name}</div>
-                <div className="text-xs text-gray-500">{category.description}</div>
+        {categories.map((category) => {
+          const tooltipContent = CATEGORY_TOOLTIPS[category.name];
+          return (
+            <div key={category.name} className="border-b border-gray-100 pb-3 last:border-0">
+              <div className="flex justify-between items-start mb-1">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="font-semibold text-gray-800 dark:text-white">{category.name}</div>
+                    <div className="group relative">
+                      <span className="inline-flex items-center justify-center w-4 h-4 text-xs rounded-full bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-help hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        ℹ
+                      </span>
+                      <div className="absolute left-0 top-6 hidden group-hover:block z-10 w-80 p-4 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
+                        <div className="text-sm">
+                          <div className="font-semibold text-gray-900 dark:text-white mb-2">{tooltipContent.explanation}</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                            <div className="font-semibold text-gray-700 dark:text-gray-200 mt-2 mb-1">Examples:</div>
+                            {tooltipContent.examples.map((example, idx) => (
+                              <div key={idx} className="pl-2 border-l-2 border-gray-300 dark:border-gray-600">
+                                {example}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">{category.description}</div>
+                </div>
+                <div className={`text-lg font-bold ${getScoreColor(category.score, category.max)}`}>
+                  {category.score}/{category.max}
+                </div>
               </div>
-              <div className={`text-lg font-bold ${getScoreColor(category.score, category.max)}`}>
-                {category.score}/{category.max}
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    (category.score / category.max) >= 0.8 ? 'bg-green-500' :
+                    (category.score / category.max) >= 0.6 ? 'bg-yellow-500' : 'bg-orange-500'
+                  }`}
+                  style={{ width: `${(category.score / category.max) * 100}%` }}
+                />
               </div>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-500 ${
-                  (category.score / category.max) >= 0.8 ? 'bg-green-500' :
-                  (category.score / category.max) >= 0.6 ? 'bg-yellow-500' : 'bg-orange-500'
-                }`}
-                style={{ width: `${(category.score / category.max) * 100}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Criteria Count */}
