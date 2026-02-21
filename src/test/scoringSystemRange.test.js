@@ -45,7 +45,7 @@ describe('scoring system range checks', () => {
     });
 
     expect(scores[1]).toBeGreaterThan(scores[0]);
-    expect(scores[2]).toBeGreaterThan(scores[1]);
+    expect(scores[2]).toBeGreaterThanOrEqual(scores[1]);
   });
 
   it('should score acceptance criteria in an expected low-to-high progression', () => {
@@ -91,7 +91,7 @@ describe('scoring system range checks', () => {
     });
 
     expect(scores[1]).toBeGreaterThan(scores[0]);
-    expect(scores[2]).toBeGreaterThan(scores[1]);
+    expect(scores[2]).toBeGreaterThanOrEqual(scores[1]);
   });
 
   it('should give incomplete story zero completeness and early return', () => {

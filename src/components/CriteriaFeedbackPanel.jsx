@@ -36,7 +36,8 @@ export default function CriteriaFeedbackPanel({ result }) {
           {suggestions.map((suggestion, index) => (
             <div 
               key={index}
-              className="flex items-start gap-3 bg-purple-50 border-l-4 border-purple-400 p-3 rounded"
+              style={{backgroundColor: 'rgba(0,0,0,0.1)'}}
+              className="flex items-start gap-3 border-l-4 border-purple-400 p-3 rounded"
             >
               <div className="text-purple-600 text-lg flex-shrink-0">💡</div>
               <div className="text-sm text-gray-700">{suggestion}</div>
