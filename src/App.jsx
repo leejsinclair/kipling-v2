@@ -225,44 +225,6 @@ function App() {
           <ProgressBar totalXP={totalXP} />
         </div>
 
-        {/* Phase Indicator */}
-        {phase !== 'story' && (
-          <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-                    ✓
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Story Written</span>
-                </div>
-                <div className="w-16 h-1 bg-gray-300"></div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                    phase === 'complete' 
-                      ? 'bg-green-500 text-white' 
-                      : 'bg-blue-500 text-white'
-                  }`}>
-                    {phase === 'complete' ? '✓' : '2'}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Acceptance Criteria</span>
-                </div>
-                {phase === 'complete' && (
-                  <>
-                    <div className="w-16 h-1 bg-gray-300"></div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold">
-                        ★
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Complete</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Phase 1: Story Form */}
         {phase === 'story' && (
           <div className="mb-8">

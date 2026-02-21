@@ -551,7 +551,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
       <div className="mb-4">
         <div className="flex items-center justify-between gap-4 mb-2">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-            ✅ Write Acceptance Criteria
+            Step 2 of 2: Write Acceptance Criteria
           </h2>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer whitespace-nowrap">
             <span>Bullet point format</span>

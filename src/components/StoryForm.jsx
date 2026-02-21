@@ -151,7 +151,7 @@ export default function StoryForm({ onSubmit, initialStory = null }) {
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 space-y-4">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Craft Your User Story</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Step 1 or 2: Craft Your User Story</h2>
         <p className="text-gray-600 dark:text-gray-400 text-sm">
           Fill in all three fields to create a complete agile user story
         </p>
