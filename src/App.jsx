@@ -10,10 +10,11 @@ import CriteriaScoreBreakdown from './components/CriteriaScoreBreakdown';
 import CriteriaFeedbackPanel from './components/CriteriaFeedbackPanel';
 import StoryAndCriteriaExport from './components/StoryAndCriteriaExport';
 import CombinedScoreSummary from './components/CombinedScoreSummary';
-import { scoreStory, checkAchievements } from './scoringEngine';
-import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
+import { scoreStory, checkAchievements, STORY_ACHIEVEMENT_CATALOG } from './scoringEngine';
+import { scoreCriteria, checkCriteriaAchievements, CRITERIA_ACHIEVEMENT_CATALOG } from './criteriaScoring';
 
 function App() {
+  const badgeCatalog = [...STORY_ACHIEVEMENT_CATALOG, ...CRITERIA_ACHIEVEMENT_CATALOG];
   const [phase, setPhase] = useState('story'); // 'story', 'criteria', or 'complete'
   const [currentStory, setCurrentStory] = useState(null);
   const [draftStory, setDraftStory] = useState(null);
@@ -222,7 +223,11 @@ function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Bar */}
         <div className="mb-8">
-          <ProgressBar totalXP={totalXP} />
+          <ProgressBar
+            totalXP={totalXP}
+            allAchievements={allAchievements}
+            allBadges={badgeCatalog}
+          />
         </div>
 
         {/* Phase 1: Story Form */}

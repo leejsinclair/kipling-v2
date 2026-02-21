@@ -36,6 +36,33 @@ const VALUE_VERBS = [
   'maintain', 'prevent', 'support', 'facilitate'
 ];
 
+export const CRITERIA_ACHIEVEMENT_CATALOG = [
+  {
+    id: 'testability-master',
+    name: 'Testability Master',
+    description: 'Scored 50+ points on acceptance criteria',
+    requirement: 'Score at least 50 points on acceptance criteria'
+  },
+  {
+    id: 'gherkin-guru',
+    name: 'Gherkin Guru',
+    description: 'Perfect format score on acceptance criteria',
+    requirement: 'Achieve a format score of at least 9 in acceptance criteria'
+  },
+  {
+    id: 'observable-outcomes',
+    name: 'Observable Outcomes',
+    description: 'Excellent testability score (14+)',
+    requirement: 'Achieve a testability score of at least 14'
+  },
+  {
+    id: 'comprehensive-coverage',
+    name: 'Comprehensive Coverage',
+    description: 'Wrote 5+ high-quality acceptance criteria',
+    requirement: 'Write at least 5 criteria and score at least 45 points'
+  }
+];
+
 /**
  * Score acceptance criteria
  * @param {Array<string>} criteria - Array of acceptance criteria strings
@@ -585,37 +612,22 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
  */
 export function checkCriteriaAchievements(criteriaScore, criteriaCount, breakdown) {
   const achievements = [];
+  const getAchievement = (id) => CRITERIA_ACHIEVEMENT_CATALOG.find((achievement) => achievement.id === id);
 
   if (criteriaScore >= 50) {
-    achievements.push({
-      id: 'testability-master',
-      name: 'Testability Master',
-      description: 'Scored 50+ points on acceptance criteria'
-    });
+    achievements.push(getAchievement('testability-master'));
   }
 
   if (breakdown.format >= 9) {
-    achievements.push({
-      id: 'gherkin-guru',
-      name: 'Gherkin Guru',
-      description: 'Perfect format score on acceptance criteria'
-    });
+    achievements.push(getAchievement('gherkin-guru'));
   }
 
   if (breakdown.testability >= 14) {
-    achievements.push({
-      id: 'observable-outcomes',
-      name: 'Observable Outcomes',
-      description: 'Excellent testability score (14+)'
-    });
+    achievements.push(getAchievement('observable-outcomes'));
   }
 
   if (criteriaCount >= 5 && criteriaScore >= 45) {
-    achievements.push({
-      id: 'comprehensive-coverage',
-      name: 'Comprehensive Coverage',
-      description: 'Wrote 5+ high-quality acceptance criteria'
-    });
+    achievements.push(getAchievement('comprehensive-coverage'));
   }
 
   return achievements;

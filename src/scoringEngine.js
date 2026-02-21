@@ -54,6 +54,33 @@ const BUSINESS_METRICS = [
   'abandonment', 'cart abandonment', 'bounce rate', 'click-through', 'ctr'
 ];
 
+export const STORY_ACHIEVEMENT_CATALOG = [
+  {
+    id: 'crystal-clear',
+    name: 'Crystal Clear Value',
+    description: 'Scored 50+ points on a story',
+    requirement: 'Score at least 50 points on a single user story'
+  },
+  {
+    id: 'epic-writer',
+    name: 'Epic Writer',
+    description: 'Scored 55+ points on a story',
+    requirement: 'Score at least 55 points on a single user story'
+  },
+  {
+    id: 'concise-master',
+    name: 'Concise Master',
+    description: 'Wrote a high-quality story in 20 words or less',
+    requirement: 'Write a story of 20 words or fewer and score at least 40 points'
+  },
+  {
+    id: 'on-fire',
+    name: 'On Fire!',
+    description: 'Three consecutive stories with 40+ points',
+    requirement: 'Score 40+ points in three consecutive stories'
+  }
+];
+
 /**
  * Score a user story based on multiple criteria
  * @param {Object} story - The user story with asA, iWant, soThat fields
@@ -429,39 +456,24 @@ export function calculateProgression(totalXP) {
  */
 export function checkAchievements(score, wordCount, storyHistory = []) {
   const achievements = [];
+  const getAchievement = (id) => STORY_ACHIEVEMENT_CATALOG.find((achievement) => achievement.id === id);
   
   if (score >= 50) {
-    achievements.push({
-      id: 'crystal-clear',
-      name: 'Crystal Clear Value',
-      description: 'Scored 50+ points on a story'
-    });
+    achievements.push(getAchievement('crystal-clear'));
   }
   
   if (score >= 55) {
-    achievements.push({
-      id: 'epic-writer',
-      name: 'Epic Writer',
-      description: 'Scored 55+ points on a story'
-    });
+    achievements.push(getAchievement('epic-writer'));
   }
   
   if (wordCount <= 20 && score >= 40) {
-    achievements.push({
-      id: 'concise-master',
-      name: 'Concise Master',
-      description: 'Wrote a high-quality story in 20 words or less'
-    });
+    achievements.push(getAchievement('concise-master'));
   }
   
   if (storyHistory.length >= 3) {
     const recentScores = storyHistory.slice(-3).map(s => s.score);
     if (recentScores.every(s => s >= 40)) {
-      achievements.push({
-        id: 'on-fire',
-        name: 'On Fire!',
-        description: 'Three consecutive stories with 40+ points'
-      });
+      achievements.push(getAchievement('on-fire'));
     }
   }
   

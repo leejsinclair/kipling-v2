@@ -1,7 +1,8 @@
 import { calculateProgression } from '../scoringEngine';
 
-export default function ProgressBar({ totalXP }) {
+export default function ProgressBar({ totalXP, allAchievements = [], allBadges = [] }) {
   const { currentLevel, nextLevel } = calculateProgression(totalXP);
+  const collectedIds = new Set(allAchievements.map((achievement) => achievement.id));
   
   const progressToNext = nextLevel 
     ? ((totalXP - currentLevel.threshold) / (nextLevel.threshold - currentLevel.threshold)) * 100
@@ -13,6 +14,31 @@ export default function ProgressBar({ totalXP }) {
         <div>
           <h3 className="text-lg font-bold text-gray-800">{currentLevel.name}</h3>
           <p className="text-sm text-gray-600">Total XP: {totalXP}</p>
+          {allBadges.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="text-xs font-medium text-gray-500">Badges:</span>
+              {allBadges.map((badge) => {
+                const isCollected = collectedIds.has(badge.id);
+                const tooltipText = isCollected
+                  ? badge.description
+                  : `🔒 ${badge.requirement || badge.description}`;
+
+                return (
+                  <span
+                    key={badge.id}
+                    title={tooltipText}
+                    className={`text-xs px-2 py-1 rounded-full border ${
+                      isCollected
+                        ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                        : 'bg-transparent text-gray-400 border-gray-300'
+                    }`}
+                  >
+                    {isCollected ? '🏆' : '◌'} {badge.name}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
         {nextLevel && (
           <div className="text-right">
