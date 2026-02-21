@@ -1,37 +1,66 @@
 import { useState } from 'react';
 
-function getCriterionHint(value, format) {
-  if (!value.trim()) return '';
-  const lower = value.toLowerCase().trim();
+const FORMAT_HINTS = {
+  gherkin: [
+    'Start with "Given" to describe the context or precondition.',
+    'Use "When" to describe the action or event that triggers the scenario.',
+    'Use "Then" to describe the expected observable outcome.',
+    'Use "And" to continue a Given, When, or Then step.',
+  ],
+  bullet: [
+    'Start with "The system must..." or "The user can..." for clear ownership.',
+    'Describe a single, testable behaviour per criterion.',
+    'Reference specific UI elements (button, field, message) when possible.',
+    'Avoid vague words like "basically", "sort of", or "maybe".',
+  ]
+};
+
+/**
+ * Generate a context-sensitive hint for a single criterion string.
+ * Returns null when the criterion is empty.
+ */
+function getHintForCriterion(criterion, format) {
+  const text = criterion.trim();
+  if (!text) return null;
+
+  const lower = text.toLowerCase();
 
   if (format === 'gherkin') {
-    const hasGiven = lower.startsWith('given');
-    const hasWhen = lower.includes('when');
-    const hasThen = lower.includes('then');
-    if (!hasGiven && !hasWhen && !hasThen) {
-      return '💡 Tip: Use Given/When/Then – e.g., "Given [context] When [action] Then [outcome]"';
+    if (!lower.startsWith('given') && !lower.startsWith('when') && !lower.startsWith('then') && !lower.startsWith('and')) {
+      return 'Try starting with "Given", "When", or "Then" to follow Gherkin format.';
     }
-    if (hasGiven && !hasWhen) {
-      return '💡 Tip: Add a "When" clause to describe the action being taken';
+    if (lower.startsWith('given') && !lower.includes('when') && !lower.includes('then')) {
+      return 'Add a "When" clause to describe the action, and a "Then" clause for the outcome.';
     }
-    if ((hasGiven || hasWhen) && !hasThen) {
-      return '💡 Tip: Add a "Then" clause to describe the expected observable outcome';
-    }
-  } else {
-    // bullet format
-    const hasBulletStart = lower.startsWith('the system') || lower.startsWith('the user') ||
-      lower.startsWith('user can') || lower.startsWith('system must');
-    if (!hasBulletStart) {
-      return '💡 Tip: Start with "The system must...", "The user can...", or "The page displays..."';
+    if (lower.startsWith('when') && !lower.includes('then')) {
+      return 'Add a "Then" clause to describe the expected observable outcome.';
     }
   }
-  return '';
+
+  if (format === 'bullet') {
+    if (!lower.startsWith('the system') && !lower.startsWith('the user') &&
+        !lower.startsWith('user can') && !lower.startsWith('system must')) {
+      return 'Start with "The system must..." or "The user can..." for a clear, testable statement.';
+    }
+  }
+
+  const VAGUE_WORDS = ['basically', 'sort of', 'kind of', 'maybe', 'probably', 'might', 'somewhat'];
+  const hasVague = VAGUE_WORDS.some(w => lower.includes(w));
+  if (hasVague) {
+    return 'Replace vague words with specific, measurable language.';
+  }
+
+  if (text.split(/\s+/).length < 5) {
+    return 'This criterion is quite short – add more detail to make it testable.';
+  }
+
+  return null;
 }
 
 export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const [criteria, setCriteria] = useState(['', '', '']);
   const [format, setFormat] = useState('gherkin');
-  const [criteriaHints, setCriteriaHints] = useState(['', '', '']);
+  const [hints, setHints] = useState({});
 
   const handleCriterionChange = (index, value) => {
     const newCriteria = [...criteria];
@@ -89,18 +118,12 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const handleReset = () => {
     setCriteria(['', '', '']);
     setFormat('gherkin');
-    setCriteriaHints(['', '', '']);
+    setHints({});
   };
 
-  const handleCriterionBlur = (index, value) => {
-    const newHints = [...criteriaHints];
-    newHints[index] = getCriterionHint(value, format);
-    setCriteriaHints(newHints);
-  };
-
-  const handleFormatChange = (newFormat) => {
-    setFormat(newFormat);
-    setCriteriaHints(criteria.map(() => ''));
+  const handleBlur = (index) => {
+    const hint = getHintForCriterion(criteria[index], format);
+    setHints(prev => ({ ...prev, [index]: hint }));
   };
 
   const filledCount = criteria.filter(c => c.trim()).length;
@@ -142,7 +165,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         <div className="flex gap-4 mb-4">
           <button
             type="button"
-            onClick={() => handleFormatChange('gherkin')}
+            onClick={() => { setFormat('gherkin'); setHints({}); }}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'gherkin'
                 ? 'bg-blue-600 text-white'
@@ -153,7 +176,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           </button>
           <button
             type="button"
-            onClick={() => handleFormatChange('bullet')}
+            onClick={() => { setFormat('bullet'); setHints({}); }}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'bullet'
                 ? 'bg-blue-600 text-white'
@@ -172,6 +195,13 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line font-mono">
             {formatExamples[format].example}
           </p>
+          <ul className="mt-2 space-y-1">
+            {FORMAT_HINTS[format].map((tip, i) => (
+              <li key={i} className="text-xs text-gray-500 flex gap-1">
+                <span>•</span><span>{tip}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -190,7 +220,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 id={`criterion-${index}`}
                 value={criterion}
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
-                onBlur={(e) => handleCriterionBlur(index, e.target.value)}
+                onBlur={() => handleBlur(index)}
                 placeholder={
                   format === 'gherkin'
                     ? 'Given [context]\nWhen [action]\nThen [outcome]'
@@ -211,8 +241,10 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 </button>
               )}
             </div>
-            {criteriaHints[index] && (
-              <p className="mt-1 text-xs text-amber-600">{criteriaHints[index]}</p>
+            {hints[index] && (
+              <p className="mt-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1" role="note">
+                💡 {hints[index]}
+              </p>
             )}
           </div>
         ))}
