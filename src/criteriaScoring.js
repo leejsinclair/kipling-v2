@@ -59,7 +59,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   breakdown.testability = scoreTestability(criteria);
   breakdown.specificity = scoreSpecificity(criteria);
   breakdown.alignment = scoreAlignment(criteria, storyValue);
-  breakdown.completeness = scoreCompleteness(criteria, format);
+  breakdown.completeness = scoreCompleteness(criteria, selectedFormat);
 
   // Calculate total (max 55 points for criteria, matching story max)
   totalScore = breakdown.format + breakdown.testability + breakdown.specificity + 
@@ -69,7 +69,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   if (breakdown.format >= 8) {
     feedback.push('Excellent format! Your criteria follow a clear structure.');
   } else if (breakdown.format < 5) {
-    if (format === 'bullet') {
+    if (selectedFormat === 'bullet') {
       feedback.push('Consider starting each criterion with "The system must..." or "The user can..." for clearer criteria.');
     } else {
       feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
@@ -100,7 +100,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
 
   // Generate suggestions
   if (breakdown.format < 8) {
-    if (format === 'bullet') {
+    if (selectedFormat === 'bullet') {
       suggestions.push('Try starting each criterion with "The system must...", "The user can...", or "The page displays..."');
     } else {
       suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');

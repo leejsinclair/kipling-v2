@@ -5,13 +5,13 @@ const FORMAT_HINTS = {
     'Start with "Given" to describe the context or precondition.',
     'Use "When" to describe the action or event that triggers the scenario.',
     'Use "Then" to describe the expected observable outcome.',
-    'Use "And" to continue a Given, When, or Then step.',
+    'Use "And" to continue a Given, When, or Then step.'
   ],
   bullet: [
     'Start with "The system must..." or "The user can..." for clear ownership.',
     'Describe a single, testable behaviour per criterion.',
     'Reference specific UI elements (button, field, message) when possible.',
-    'Avoid vague words like "basically", "sort of", or "maybe".',
+    'Avoid vague words like "basically", "sort of", or "maybe".'
   ]
 };
 
@@ -67,43 +67,28 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
     newCriteria[index] = value;
     setCriteria(newCriteria);
 
-    setCriterionFeedback((prev) => {
-      const next = [...prev];
-      next[index] = null;
-      return next;
-    });
-  };
-
-  const handleCriterionBlur = (index, value) => {
-    const feedback = format === 'gherkin'
-      ? scoreGherkinCriterion(value)
-      : scoreBulletCriterion(value);
-
-    setCriterionFeedback((prev) => {
-      const next = [...prev];
-      next[index] = feedback;
-      return next;
-    });
-  };
-
-  const handleFormatChange = (nextFormat) => {
-    setFormat(nextFormat);
-    clearFeedbackForCurrentCriteria();
+    setHints((prev) => ({ ...prev, [index]: null }));
   };
 
   const addCriterion = () => {
     if (criteria.length < 5) {
       setCriteria([...criteria, '']);
-      setCriteriaHints([...criteriaHints, '']);
+      setHints((prev) => ({ ...prev, [criteria.length]: null }));
     }
   };
 
   const removeCriterion = (index) => {
     if (criteria.length > 1) {
       const newCriteria = criteria.filter((_, i) => i !== index);
-      const newHints = criteriaHints.filter((_, i) => i !== index);
       setCriteria(newCriteria);
-      setCriteriaHints(newHints);
+      setHints((prev) => {
+        const next = {};
+        newCriteria.forEach((_, i) => {
+          const oldIndex = i >= index ? i + 1 : i;
+          next[i] = prev[oldIndex] || null;
+        });
+        return next;
+      });
     }
   };
 
@@ -121,8 +106,8 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
     setHints({});
   };
 
-  const handleBlur = (index) => {
-    const hint = getHintForCriterion(criteria[index], format);
+  const handleBlur = (index, value) => {
+    const hint = getHintForCriterion(value, format);
     setHints(prev => ({ ...prev, [index]: hint }));
   };
 
@@ -138,9 +123,6 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
       example: 'The system must validate user input\nThe user can export data as CSV\nThe page displays error messages'
     }
   };
-
-  const criterionScoreColor = (score) =>
-    score >= 8 ? 'text-green-600 dark:text-green-400' : score >= 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
 
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 space-y-4">
@@ -220,7 +202,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 id={`criterion-${index}`}
                 value={criterion}
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
-                onBlur={() => handleBlur(index)}
+                onBlur={() => handleBlur(index, criterion)}
                 placeholder={
                   format === 'gherkin'
                     ? 'Given [context]\nWhen [action]\nThen [outcome]'
@@ -242,7 +224,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
               )}
             </div>
             {hints[index] && (
-              <p className="mt-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1" role="note">
+              <p style={{backgroundColor: 'rgba(0,0,0,0.1)'}} className="mt-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1" role="note">
                 💡 {hints[index]}
               </p>
             )}
