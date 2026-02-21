@@ -32,6 +32,21 @@ describe('StoryForm', () => {
     expect(screen.getByText('1', { selector: '.font-semibold' })).toBeInTheDocument();
   });
 
+  it('should show field score and hint after blur', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+
+    expect(screen.queryByText(/field score:/i)).not.toBeInTheDocument();
+
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'developer');
+    await user.tab();
+
+    expect(screen.getByText(/field score:/i)).toBeInTheDocument();
+    expect(screen.getByText(/hint:/i)).toBeInTheDocument();
+  });
+
   it('should call onSubmit when form is submitted with all fields filled', async () => {
     const user = userEvent.setup();
     const mockSubmit = vi.fn();
@@ -72,12 +87,16 @@ describe('StoryForm', () => {
     await user.type(asAInput, 'developer');
     await user.type(iWantInput, 'to write code');
     await user.type(soThatInput, 'to deliver value');
+
+    await user.tab();
+    expect(screen.getAllByText(/field score:/i).length).toBeGreaterThan(0);
     
     await user.click(screen.getByRole('button', { name: /reset/i }));
     
     expect(asAInput).toHaveValue('');
     expect(iWantInput).toHaveValue('');
     expect(soThatInput).toHaveValue('');
+    expect(screen.queryByText(/field score:/i)).not.toBeInTheDocument();
   });
 
   it('should have Score My Story and Reset buttons', () => {

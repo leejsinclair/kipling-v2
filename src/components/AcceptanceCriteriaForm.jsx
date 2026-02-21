@@ -1,18 +1,137 @@
 import { useState } from 'react';
 
+function buildCriterionFeedback(score, hints) {
+  return { score, hints };
+}
+
+function scoreGherkinCriterion(text) {
+  const cleanText = text.trim();
+  if (!cleanText) {
+    return buildCriterionFeedback(0, ['Add a criterion using Given/When/Then structure.']);
+  }
+
+  const lowerText = cleanText.toLowerCase();
+  const hasGiven = lowerText.includes('given');
+  const hasWhen = lowerText.includes('when');
+  const hasThen = lowerText.includes('then');
+
+  let score = 2;
+  const hints = [];
+
+  if (hasGiven) score += 2;
+  else hints.push('Add a "Given" context to explain the starting state.');
+
+  if (hasWhen) score += 3;
+  else hints.push('Add a "When" action that triggers behavior.');
+
+  if (hasThen) score += 3;
+  else hints.push('Add a "Then" outcome that is observable and testable.');
+
+  if (hints.length === 0) {
+    hints.push('Great Gherkin structure.');
+  }
+
+  return buildCriterionFeedback(Math.min(10, score), hints);
+}
+
+function scoreBulletCriterion(text) {
+  const cleanText = text.trim();
+  if (!cleanText) {
+    return buildCriterionFeedback(0, ['Add a concise bullet criterion with actor, action, and expected outcome.']);
+  }
+
+  const lowerText = cleanText.toLowerCase();
+  const words = cleanText.split(/\s+/).length;
+
+  const hasActor =
+    lowerText.startsWith('the system') ||
+    lowerText.startsWith('the user') ||
+    lowerText.startsWith('user') ||
+    lowerText.startsWith('system') ||
+    lowerText.startsWith('application') ||
+    lowerText.startsWith('page');
+
+  const hasAction =
+    lowerText.includes(' must ') ||
+    lowerText.includes(' can ') ||
+    lowerText.includes(' should ') ||
+    lowerText.includes(' is able to ') ||
+    lowerText.includes(' allows ');
+
+  const hasOutcome =
+    lowerText.includes('display') ||
+    lowerText.includes('show') ||
+    lowerText.includes('error') ||
+    lowerText.includes('success') ||
+    lowerText.includes('confirmation') ||
+    lowerText.includes('visible') ||
+    lowerText.includes('saved') ||
+    lowerText.includes('export');
+
+  let score = 2;
+  const hints = [];
+
+  if (hasActor) score += 2;
+  else hints.push('Start with a clear actor (for example: "The system" or "The user").');
+
+  if (hasAction) score += 3;
+  else hints.push('Include an explicit action (for example: "must", "can", or "should").');
+
+  if (hasOutcome) score += 2;
+  else hints.push('Include a testable outcome (for example: displays a confirmation message).');
+
+  if (words >= 6) score += 1;
+  else hints.push('Add a little more detail so this can be tested consistently.');
+
+  if (hints.length === 0) {
+    hints.push('Strong bullet criterion.');
+  }
+
+  return buildCriterionFeedback(Math.min(10, score), hints);
+}
+
 export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const [criteria, setCriteria] = useState(['', '', '']);
   const [format, setFormat] = useState('gherkin');
+  const [criterionFeedback, setCriterionFeedback] = useState([null, null, null]);
+
+  const clearFeedbackForCurrentCriteria = () => {
+    setCriterionFeedback(criteria.map(() => null));
+  };
 
   const handleCriterionChange = (index, value) => {
     const newCriteria = [...criteria];
     newCriteria[index] = value;
     setCriteria(newCriteria);
+
+    setCriterionFeedback((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+  };
+
+  const handleCriterionBlur = (index, value) => {
+    const feedback = format === 'gherkin'
+      ? scoreGherkinCriterion(value)
+      : scoreBulletCriterion(value);
+
+    setCriterionFeedback((prev) => {
+      const next = [...prev];
+      next[index] = feedback;
+      return next;
+    });
+  };
+
+  const handleFormatChange = (nextFormat) => {
+    setFormat(nextFormat);
+    clearFeedbackForCurrentCriteria();
   };
 
   const addCriterion = () => {
     if (criteria.length < 5) {
       setCriteria([...criteria, '']);
+      setCriterionFeedback([...criterionFeedback, null]);
     }
   };
 
@@ -20,6 +139,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
     if (criteria.length > 1) {
       const newCriteria = criteria.filter((_, i) => i !== index);
       setCriteria(newCriteria);
+      setCriterionFeedback(criterionFeedback.filter((_, i) => i !== index));
     }
   };
 
@@ -34,6 +154,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const handleReset = () => {
     setCriteria(['', '', '']);
     setFormat('gherkin');
+    setCriterionFeedback([null, null, null]);
   };
 
   const filledCount = criteria.filter(c => c.trim()).length;
@@ -61,7 +182,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         
         {/* Story Context */}
         {storyText && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+          <div style={{ backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.5rem', borderRadius: '0.25rem', marginBottom: '1rem' }}>
             <p className="text-sm text-gray-700">
               <span className="font-semibold">Your Story:</span> {storyText}
             </p>
@@ -72,7 +193,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         <div className="flex gap-4 mb-4">
           <button
             type="button"
-            onClick={() => setFormat('gherkin')}
+            onClick={() => handleFormatChange('gherkin')}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'gherkin'
                 ? 'bg-blue-600 text-white'
@@ -83,7 +204,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           </button>
           <button
             type="button"
-            onClick={() => setFormat('bullet')}
+            onClick={() => handleFormatChange('bullet')}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'bullet'
                 ? 'bg-blue-600 text-white'
@@ -95,7 +216,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         </div>
 
         {/* Format Example */}
-        <div className="bg-gray-50 rounded-md p-3 mb-4">
+        <div style={{backgroundColor: 'rgba(0,0,0,0.1)', padding: '0.5rem', borderRadius: '0.25rem', marginBottom: '1rem'}}>
           <p className="text-xs font-semibold text-gray-700 mb-1">
             {formatExamples[format].title} Example:
           </p>
@@ -120,6 +241,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 id={`criterion-${index}`}
                 value={criterion}
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
+                onBlur={(e) => handleCriterionBlur(index, e.target.value)}
                 placeholder={
                   format === 'gherkin'
                     ? 'Given [context]\nWhen [action]\nThen [outcome]'
@@ -140,6 +262,12 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 </button>
               )}
             </div>
+            {criterionFeedback[index] && (
+              <div className="mt-2 text-sm">
+                <p className="font-medium text-gray-700">Criterion score: {criterionFeedback[index].score}/10</p>
+                <p className="text-gray-600">Hint: {criterionFeedback[index].hints[0]}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
