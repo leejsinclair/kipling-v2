@@ -1,103 +1,37 @@
 import { useState } from 'react';
 
-function buildCriterionFeedback(score, hints) {
-  return { score, hints };
-}
+function getCriterionHint(value, format) {
+  if (!value.trim()) return '';
+  const lower = value.toLowerCase().trim();
 
-function scoreGherkinCriterion(text) {
-  const cleanText = text.trim();
-  if (!cleanText) {
-    return buildCriterionFeedback(0, ['Add a criterion using Given/When/Then structure.']);
+  if (format === 'gherkin') {
+    const hasGiven = lower.startsWith('given');
+    const hasWhen = lower.includes('when');
+    const hasThen = lower.includes('then');
+    if (!hasGiven && !hasWhen && !hasThen) {
+      return '💡 Tip: Use Given/When/Then – e.g., "Given [context] When [action] Then [outcome]"';
+    }
+    if (hasGiven && !hasWhen) {
+      return '💡 Tip: Add a "When" clause to describe the action being taken';
+    }
+    if ((hasGiven || hasWhen) && !hasThen) {
+      return '💡 Tip: Add a "Then" clause to describe the expected observable outcome';
+    }
+  } else {
+    // bullet format
+    const hasBulletStart = lower.startsWith('the system') || lower.startsWith('the user') ||
+      lower.startsWith('user can') || lower.startsWith('system must');
+    if (!hasBulletStart) {
+      return '💡 Tip: Start with "The system must...", "The user can...", or "The page displays..."';
+    }
   }
-
-  const lowerText = cleanText.toLowerCase();
-  const hasGiven = lowerText.includes('given');
-  const hasWhen = lowerText.includes('when');
-  const hasThen = lowerText.includes('then');
-
-  let score = 2;
-  const hints = [];
-
-  if (hasGiven) score += 2;
-  else hints.push('Add a "Given" context to explain the starting state.');
-
-  if (hasWhen) score += 3;
-  else hints.push('Add a "When" action that triggers behavior.');
-
-  if (hasThen) score += 3;
-  else hints.push('Add a "Then" outcome that is observable and testable.');
-
-  if (hints.length === 0) {
-    hints.push('Great Gherkin structure.');
-  }
-
-  return buildCriterionFeedback(Math.min(10, score), hints);
-}
-
-function scoreBulletCriterion(text) {
-  const cleanText = text.trim();
-  if (!cleanText) {
-    return buildCriterionFeedback(0, ['Add a concise bullet criterion with actor, action, and expected outcome.']);
-  }
-
-  const lowerText = cleanText.toLowerCase();
-  const words = cleanText.split(/\s+/).length;
-
-  const hasActor =
-    lowerText.startsWith('the system') ||
-    lowerText.startsWith('the user') ||
-    lowerText.startsWith('user') ||
-    lowerText.startsWith('system') ||
-    lowerText.startsWith('application') ||
-    lowerText.startsWith('page');
-
-  const hasAction =
-    lowerText.includes(' must ') ||
-    lowerText.includes(' can ') ||
-    lowerText.includes(' should ') ||
-    lowerText.includes(' is able to ') ||
-    lowerText.includes(' allows ');
-
-  const hasOutcome =
-    lowerText.includes('display') ||
-    lowerText.includes('show') ||
-    lowerText.includes('error') ||
-    lowerText.includes('success') ||
-    lowerText.includes('confirmation') ||
-    lowerText.includes('visible') ||
-    lowerText.includes('saved') ||
-    lowerText.includes('export');
-
-  let score = 2;
-  const hints = [];
-
-  if (hasActor) score += 2;
-  else hints.push('Start with a clear actor (for example: "The system" or "The user").');
-
-  if (hasAction) score += 3;
-  else hints.push('Include an explicit action (for example: "must", "can", or "should").');
-
-  if (hasOutcome) score += 2;
-  else hints.push('Include a testable outcome (for example: displays a confirmation message).');
-
-  if (words >= 6) score += 1;
-  else hints.push('Add a little more detail so this can be tested consistently.');
-
-  if (hints.length === 0) {
-    hints.push('Strong bullet criterion.');
-  }
-
-  return buildCriterionFeedback(Math.min(10, score), hints);
+  return '';
 }
 
 export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const [criteria, setCriteria] = useState(['', '', '']);
   const [format, setFormat] = useState('gherkin');
-  const [criterionFeedback, setCriterionFeedback] = useState([null, null, null]);
-
-  const clearFeedbackForCurrentCriteria = () => {
-    setCriterionFeedback(criteria.map(() => null));
-  };
+  const [criteriaHints, setCriteriaHints] = useState(['', '', '']);
 
   const handleCriterionChange = (index, value) => {
     const newCriteria = [...criteria];
@@ -131,15 +65,16 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const addCriterion = () => {
     if (criteria.length < 5) {
       setCriteria([...criteria, '']);
-      setCriterionFeedback([...criterionFeedback, null]);
+      setCriteriaHints([...criteriaHints, '']);
     }
   };
 
   const removeCriterion = (index) => {
     if (criteria.length > 1) {
       const newCriteria = criteria.filter((_, i) => i !== index);
+      const newHints = criteriaHints.filter((_, i) => i !== index);
       setCriteria(newCriteria);
-      setCriterionFeedback(criterionFeedback.filter((_, i) => i !== index));
+      setCriteriaHints(newHints);
     }
   };
 
@@ -154,7 +89,18 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const handleReset = () => {
     setCriteria(['', '', '']);
     setFormat('gherkin');
-    setCriterionFeedback([null, null, null]);
+    setCriteriaHints(['', '', '']);
+  };
+
+  const handleCriterionBlur = (index, value) => {
+    const newHints = [...criteriaHints];
+    newHints[index] = getCriterionHint(value, format);
+    setCriteriaHints(newHints);
+  };
+
+  const handleFormatChange = (newFormat) => {
+    setFormat(newFormat);
+    setCriteriaHints(criteria.map(() => ''));
   };
 
   const filledCount = criteria.filter(c => c.trim()).length;
@@ -265,11 +211,8 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 </button>
               )}
             </div>
-            {criterionFeedback[index] && (
-              <div className="mt-2 text-sm">
-                <p className={`font-medium ${criterionScoreColor(criterionFeedback[index].score)}`}>Criterion score: {criterionFeedback[index].score}/10</p>
-                <p className="text-gray-600 dark:text-gray-400">Hint: {criterionFeedback[index].hints[0]}</p>
-              </div>
+            {criteriaHints[index] && (
+              <p className="mt-1 text-xs text-amber-600">{criteriaHints[index]}</p>
             )}
           </div>
         ))}

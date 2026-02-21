@@ -122,6 +122,59 @@ describe('scoreCriteria', () => {
     const result = scoreCriteria(criteria, 'I can save time and improve efficiency');
     expect(result.totalScore).toBeLessThanOrEqual(55);
   });
+
+  it('should award full format score for bullet-point criteria when bullet format is selected', () => {
+    const criteria = [
+      'The system must validate user input',
+      'The user can export data as CSV',
+      'The page displays error messages for invalid data'
+    ];
+    
+    const result = scoreCriteria(criteria, '', 'bullet');
+    expect(result.breakdown.format).toBe(10);
+  });
+
+  it('should score bullet-point criteria lower when gherkin format is selected', () => {
+    const criteria = [
+      'The system must validate user input',
+      'The user can export data as CSV',
+      'The page displays error messages for invalid data'
+    ];
+    
+    const bulletResult = scoreCriteria(criteria, '', 'bullet');
+    const gherkinResult = scoreCriteria(criteria, '', 'gherkin');
+    expect(bulletResult.breakdown.format).toBeGreaterThan(gherkinResult.breakdown.format);
+  });
+
+  it('should award full format score for gherkin criteria when gherkin format is selected', () => {
+    const criteria = [
+      'Given I am logged in as an admin',
+      'When I click the export button',
+      'Then I see a download confirmation message'
+    ];
+    
+    const result = scoreCriteria(criteria, '', 'gherkin');
+    expect(result.breakdown.format).toBe(10);
+  });
+
+  it('should provide format-specific feedback for bullet format', () => {
+    const criteria = ['random unstructured criterion'];
+    
+    const result = scoreCriteria(criteria, '', 'bullet');
+    const feedbackText = result.feedback.join(' ') + result.suggestions.join(' ');
+    expect(feedbackText).toMatch(/system|user/i);
+  });
+
+  it('should score bullet-point completeness when bullet format is selected', () => {
+    const criteria = [
+      'The system must validate all input fields',
+      'The user can export data in CSV format',
+      'The page displays a success notification after saving'
+    ];
+    
+    const result = scoreCriteria(criteria, '', 'bullet');
+    expect(result.breakdown.completeness).toBeGreaterThan(3);
+  });
 });
 
 describe('detectFormat', () => {

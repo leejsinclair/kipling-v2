@@ -1,115 +1,54 @@
 import { useState } from 'react';
 
-const VALUE_KEYWORDS = [
-  'increase', 'reduce', 'improve', 'save', 'enable', 'simplify', 'automate', 'streamline', 'deliver'
-];
+const FILLER_WORDS = ['basically', 'kind of', 'sort of', 'stuff', 'things', 'very', 'really', 'just', 'maybe', 'perhaps', 'probably'];
+const VAGUE_PHRASES = ["it's better", "it's easier", "it works", "make it better", "be better"];
+const VALUE_PHRASES = ['increase', 'reduce', 'enable', 'improve', 'save', 'automate', 'simplify', 'enhance', 'allow', 'ensure'];
 
-function buildFieldFeedback(score, hints) {
-  return {
-    score,
-    hints
-  };
+function getAsAHint(value) {
+  if (!value.trim()) return '';
+  const generic = ['user', 'developer', 'admin', 'person'];
+  if (generic.includes(value.trim().toLowerCase())) {
+    return '💡 Tip: Be more specific – e.g., "admin user", "new customer", or "product manager"';
+  }
+  if (value.trim().split(/\s+/).length === 1) {
+    return '💡 Tip: Consider adding context – e.g., "logged-in user" or "first-time visitor"';
+  }
+  return '';
 }
 
-function scoreAsAField(text) {
-  const cleanText = text.trim();
-  if (!cleanText) {
-    return buildFieldFeedback(0, ['Add the user role or persona who needs this feature.']);
+function getIWantHint(value) {
+  if (!value.trim()) return '';
+  const lower = value.toLowerCase();
+  const words = lower.split(/\s+/);
+  const fillers = FILLER_WORDS.filter(w => words.includes(w));
+  if (fillers.length > 0) {
+    return `💡 Tip: Remove filler words ("${fillers.join('", "')}") for a clearer feature statement`;
   }
-
-  const wordCount = cleanText.split(/\s+/).length;
-  let score = 6;
-  const hints = [];
-
-  if (wordCount >= 2) {
-    score += 2;
-  } else {
-    hints.push('Be more specific than a single-word role when possible.');
+  if (words.length < 3) {
+    return '💡 Tip: Add more detail about what you want to do or achieve';
   }
-
-  if (/user|person|someone/i.test(cleanText)) {
-    hints.push('Consider a more specific persona (for example: account admin, release manager).');
-  } else {
-    score += 2;
-  }
-
-  if (hints.length === 0) {
-    hints.push('Great role clarity.');
-  }
-
-  return buildFieldFeedback(Math.min(10, score), hints);
+  return '';
 }
 
-function scoreIWantField(text) {
-  const cleanText = text.trim();
-  if (!cleanText) {
-    return buildFieldFeedback(0, ['Describe the capability or action you want.']);
+function getSoThatHint(value) {
+  if (!value.trim()) return '';
+  const lower = value.toLowerCase();
+  if (VAGUE_PHRASES.some(p => lower.includes(p))) {
+    return '💡 Tip: Use specific value verbs like "reduce", "increase", "enable", or "save time"';
   }
-
-  const wordCount = cleanText.split(/\s+/).length;
-  const hasActionVerb = /^(to\s+)?(create|view|edit|export|track|manage|search|filter|share|receive|update|generate)\b/i.test(cleanText);
-  let score = 5;
-  const hints = [];
-
-  if (hasActionVerb) {
-    score += 3;
-  } else {
-    hints.push('Start with a clear action (for example: "to export", "to track").');
+  if (!VALUE_PHRASES.some(p => lower.includes(p))) {
+    if (value.trim().split(/\s+/).length < 5) {
+      return '💡 Tip: Describe the business value – start with a verb like "reduce", "enable", or "improve"';
+    }
   }
-
-  if (wordCount >= 4) {
-    score += 2;
-  } else {
-    hints.push('Add a bit more context so the intent is specific.');
-  }
-
-  if (hints.length === 0) {
-    hints.push('Clear goal statement.');
-  }
-
-  return buildFieldFeedback(Math.min(10, score), hints);
-}
-
-function scoreSoThatField(text) {
-  const cleanText = text.trim();
-  if (!cleanText) {
-    return buildFieldFeedback(0, ['Add the business or user value this outcome creates.']);
-  }
-
-  const words = cleanText.split(/\s+/);
-  const lowerText = cleanText.toLowerCase();
-  const hasValueKeyword = VALUE_KEYWORDS.some((keyword) => lowerText.includes(keyword));
-  let score = 5;
-  const hints = [];
-
-  if (hasValueKeyword) {
-    score += 3;
-  } else {
-    hints.push('Use a value-oriented outcome (for example: increase, reduce, save, improve).');
-  }
-
-  if (words.length >= 6) {
-    score += 2;
-  } else {
-    hints.push('Add a more concrete outcome so the value is measurable.');
-  }
-
-  if (hints.length === 0) {
-    hints.push('Strong value statement.');
-  }
-
-  return buildFieldFeedback(Math.min(10, score), hints);
+  return '';
 }
 
 export default function StoryForm({ onSubmit }) {
   const [asA, setAsA] = useState('');
   const [iWant, setIWant] = useState('');
   const [soThat, setSoThat] = useState('');
-  const [fieldFeedback, setFieldFeedback] = useState({
-    asA: null,
-    iWant: null,
-    soThat: null
-  });
+  const [hints, setHints] = useState({ asA: '', iWant: '', soThat: '' });
   
   const wordCount = `${asA} ${iWant} ${soThat}`.trim().split(/\s+/).filter(w => w).length;
   
@@ -124,26 +63,12 @@ export default function StoryForm({ onSubmit }) {
     setAsA('');
     setIWant('');
     setSoThat('');
-    setFieldFeedback({ asA: null, iWant: null, soThat: null });
+    setHints({ asA: '', iWant: '', soThat: '' });
   };
 
-  const handleBlur = (fieldName, value) => {
-    let feedback;
-
-    if (fieldName === 'asA') {
-      feedback = scoreAsAField(value);
-    }
-    if (fieldName === 'iWant') {
-      feedback = scoreIWantField(value);
-    }
-    if (fieldName === 'soThat') {
-      feedback = scoreSoThatField(value);
-    }
-
-    setFieldFeedback(prev => ({
-      ...prev,
-      [fieldName]: feedback
-    }));
+  const handleBlur = (field, value) => {
+    const hintFns = { asA: getAsAHint, iWant: getIWantHint, soThat: getSoThatHint };
+    setHints(prev => ({ ...prev, [field]: hintFns[field](value) }));
   };
   
   const fieldScoreColor = (score) =>
@@ -172,12 +97,7 @@ export default function StoryForm({ onSubmit }) {
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
         />
-        {fieldFeedback.asA && (
-          <div className="mt-2 text-sm">
-            <p className={`font-medium ${fieldScoreColor(fieldFeedback.asA.score)}`}>Field score: {fieldFeedback.asA.score}/10</p>
-            <p className="text-gray-600 dark:text-gray-400">Hint: {fieldFeedback.asA.hints[0]}</p>
-          </div>
-        )}
+        {hints.asA && <p className="mt-1 text-xs text-amber-600">{hints.asA}</p>}
       </div>
       
       <div>
@@ -194,12 +114,7 @@ export default function StoryForm({ onSubmit }) {
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           required
         />
-        {fieldFeedback.iWant && (
-          <div className="mt-2 text-sm">
-            <p className={`font-medium ${fieldScoreColor(fieldFeedback.iWant.score)}`}>Field score: {fieldFeedback.iWant.score}/10</p>
-            <p className="text-gray-600 dark:text-gray-400">Hint: {fieldFeedback.iWant.hints[0]}</p>
-          </div>
-        )}
+        {hints.iWant && <p className="mt-1 text-xs text-amber-600">{hints.iWant}</p>}
       </div>
       
       <div>
@@ -216,12 +131,7 @@ export default function StoryForm({ onSubmit }) {
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           required
         />
-        {fieldFeedback.soThat && (
-          <div className="mt-2 text-sm">
-            <p className={`font-medium ${fieldScoreColor(fieldFeedback.soThat.score)}`}>Field score: {fieldFeedback.soThat.score}/10</p>
-            <p className="text-gray-600 dark:text-gray-400">Hint: {fieldFeedback.soThat.hints[0]}</p>
-          </div>
-        )}
+        {hints.soThat && <p className="mt-1 text-xs text-amber-600">{hints.soThat}</p>}
       </div>
       
       <div className="flex items-center justify-between pt-2">

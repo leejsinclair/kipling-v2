@@ -36,9 +36,10 @@ const VALUE_VERBS = [
  * Score acceptance criteria
  * @param {Array<string>} criteria - Array of acceptance criteria strings
  * @param {string} storyValue - The "So that..." value statement from the story
+ * @param {string} format - The selected format: 'gherkin' or 'bullet' (default: 'gherkin')
  * @returns {Object} Score breakdown and feedback
  */
-export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherkin') {
+export function scoreCriteria(criteria, storyValue = '', format = 'gherkin') {
   if (!criteria || criteria.length === 0) {
     return {
       totalScore: 0,
@@ -54,11 +55,11 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   const suggestions = [];
 
   // Score each category
-  breakdown.format = scoreFormat(criteria, selectedFormat);
+  breakdown.format = scoreFormat(criteria, format);
   breakdown.testability = scoreTestability(criteria);
   breakdown.specificity = scoreSpecificity(criteria);
   breakdown.alignment = scoreAlignment(criteria, storyValue);
-  breakdown.completeness = scoreCompleteness(criteria, selectedFormat);
+  breakdown.completeness = scoreCompleteness(criteria, format);
 
   // Calculate total (max 55 points for criteria, matching story max)
   totalScore = breakdown.format + breakdown.testability + breakdown.specificity + 
@@ -68,8 +69,8 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   if (breakdown.format >= 8) {
     feedback.push('Excellent format! Your criteria follow a clear structure.');
   } else if (breakdown.format < 5) {
-    if (selectedFormat === 'bullet') {
-      feedback.push('Use consistent bullet-point structure with clear actor, action, and outcome.');
+    if (format === 'bullet') {
+      feedback.push('Consider starting each criterion with "The system must..." or "The user can..." for clearer criteria.');
     } else {
       feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
     }
@@ -99,8 +100,8 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
 
   // Generate suggestions
   if (breakdown.format < 8) {
-    if (selectedFormat === 'bullet') {
-      suggestions.push('Use bullet criteria like "The system ..." or "The user can ..." with specific outcomes');
+    if (format === 'bullet') {
+      suggestions.push('Try starting each criterion with "The system must...", "The user can...", or "The page displays..."');
     } else {
       suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
     }
@@ -155,29 +156,34 @@ function scoreFormat(criteria, selectedFormat = 'gherkin') {
     }
   });
 
-  // Award points based on selected format consistency
+  // Award points based on format consistency and selected format
   const criteriaLength = criteria.length;
+
   if (selectedFormat === 'bullet') {
+    // Bullet-point is the preferred format: award full points for bullet structure
     if (structuredCount >= criteriaLength * 0.6) {
-      score = 10;
+      score = 10; // Consistent bullet-point format
     } else if (structuredCount >= criteriaLength * 0.3) {
-      score = 7;
+      score = 7; // Partial bullet-point format
     } else if (gherkinCount >= criteriaLength * 0.6) {
-      score = 8;
+      score = 7; // Gherkin used but bullet selected
+    } else if (gherkinCount >= criteriaLength * 0.3) {
+      score = 5; // Partial structure
     } else {
-      score = 3;
+      score = 3; // Minimal structure
     }
   } else {
+    // Gherkin is the preferred format (default)
     if (gherkinCount >= criteriaLength * 0.6) {
-      score = 10;
+      score = 10; // Consistent Gherkin format
     } else if (gherkinCount >= criteriaLength * 0.3) {
-      score = 7;
+      score = 7; // Partial Gherkin format
     } else if (structuredCount >= criteriaLength * 0.6) {
-      score = 8;
+      score = 7; // Bullet-point used but Gherkin selected
     } else if (structuredCount >= criteriaLength * 0.3) {
-      score = 5;
+      score = 5; // Partial structure
     } else {
-      score = 3;
+      score = 3; // Minimal structure
     }
   }
 
@@ -273,76 +279,44 @@ function scoreAlignment(criteria, storyValue) {
  * Max: 10 points
  */
 function scoreCompleteness(criteria, selectedFormat = 'gherkin') {
+  let score = 0;
+
   if (selectedFormat === 'bullet') {
-    let score = 0;
-    let completeCriteria = 0;
+    // For bullet format: check for behavioral coverage (must/can/displays patterns)
+    let hasMust = false;
+    let hasCan = false;
+    let hasDisplays = false;
 
     criteria.forEach(criterion => {
       const lower = criterion.toLowerCase();
-      const hasActor =
-        lower.startsWith('the system') ||
-        lower.startsWith('the user') ||
-        lower.startsWith('system') ||
-        lower.startsWith('user') ||
-        lower.startsWith('application');
-
-      const hasAction =
-        lower.includes(' must ') ||
-        lower.includes(' can ') ||
-        lower.includes(' should ') ||
-        lower.includes(' is able to ') ||
-        lower.includes(' allows ') ||
-        lower.includes(' validates ') ||
-        lower.includes(' saves ') ||
-        lower.includes(' exports ');
-
-      const hasOutcome = OBSERVABLE_PATTERNS.some(pattern => lower.includes(pattern));
-
-      if (hasActor && hasAction && hasOutcome) {
-        completeCriteria += 1;
-      }
+      if (lower.includes('must') || lower.includes('shall')) hasMust = true;
+      if (lower.includes('can') || lower.includes('able to')) hasCan = true;
+      if (lower.includes('display') || lower.includes('show') || lower.includes('appear') ||
+          lower.includes('message') || lower.includes('notification')) hasDisplays = true;
     });
 
-    if (completeCriteria >= Math.ceil(criteria.length * 0.6)) score += 6;
-    else if (completeCriteria >= 1) score += 4;
-    else score += 2;
+    if (hasMust) score += 3;
+    if (hasCan) score += 3;
+    if (hasDisplays) score += 4;
+  } else {
+    // Gherkin: check for Given/When/Then coverage
+    let hasContext = false;
+    let hasAction = false;
+    let hasOutcome = false;
 
-    if (criteria.length >= 3) score += 2;
-    if (criteria.length >= 5) score += 2;
+    criteria.forEach(criterion => {
+      const lower = criterion.toLowerCase();
+      if (GHERKIN_KEYWORDS.given.some(kw => lower.includes(kw))) hasContext = true;
+      if (GHERKIN_KEYWORDS.when.some(kw => lower.includes(kw))) hasAction = true;
+      if (GHERKIN_KEYWORDS.then.some(kw => lower.includes(kw))) hasOutcome = true;
+    });
 
-    return Math.min(10, score);
+    if (hasContext) score += 3;
+    if (hasAction) score += 3;
+    if (hasOutcome) score += 4;
   }
-
-  let score = 0;
-  let hasContext = false;
-  let hasAction = false;
-  let hasOutcome = false;
-
-  criteria.forEach(criterion => {
-    const lower = criterion.toLowerCase();
-    
-    // Check for Given (context)
-    if (GHERKIN_KEYWORDS.given.some(kw => lower.includes(kw))) {
-      hasContext = true;
-    }
-    
-    // Check for When (action)
-    if (GHERKIN_KEYWORDS.when.some(kw => lower.includes(kw))) {
-      hasAction = true;
-    }
-    
-    // Check for Then (outcome)
-    if (GHERKIN_KEYWORDS.then.some(kw => lower.includes(kw))) {
-      hasOutcome = true;
-    }
-  });
-
-  // Award points for coverage
-  if (hasContext) score += 3;
-  if (hasAction) score += 3;
-  if (hasOutcome) score += 4;
   
-  // Award points for having multiple criteria
+  // Award points for having multiple criteria (applies to both formats)
   if (criteria.length >= 3) score += 3;
   if (criteria.length >= 5) score += 2;
 
