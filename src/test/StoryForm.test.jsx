@@ -87,4 +87,58 @@ describe('StoryForm', () => {
     expect(screen.getByRole('button', { name: /score my story/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument();
   });
+
+  it('should show a hint on blur when "As a" field has a generic value', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'user');
+    await user.tab(); // trigger blur
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should show a hint on blur when "I want" field contains filler words', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const iWantInput = screen.getByLabelText(/i want/i);
+    await user.type(iWantInput, 'to basically do some stuff');
+    await user.tab();
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should show a hint on blur when "So that" field has vague language', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const soThatInput = screen.getByLabelText(/so that/i);
+    await user.type(soThatInput, "it's better");
+    await user.tab();
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should clear hints when Reset is clicked', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'user');
+    await user.tab();
+    
+    // Hint should be visible
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+    
+    await user.click(screen.getByRole('button', { name: /reset/i }));
+    
+    // Hint should be gone after reset
+    expect(screen.queryByText(/tip:/i)).not.toBeInTheDocument();
+  });
 });

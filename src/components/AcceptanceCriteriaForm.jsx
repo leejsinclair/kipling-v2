@@ -1,8 +1,37 @@
 import { useState } from 'react';
 
+function getCriterionHint(value, format) {
+  if (!value.trim()) return '';
+  const lower = value.toLowerCase().trim();
+
+  if (format === 'gherkin') {
+    const hasGiven = lower.startsWith('given');
+    const hasWhen = lower.includes('when');
+    const hasThen = lower.includes('then');
+    if (!hasGiven && !hasWhen && !hasThen) {
+      return '💡 Tip: Use Given/When/Then – e.g., "Given [context] When [action] Then [outcome]"';
+    }
+    if (hasGiven && !hasWhen) {
+      return '💡 Tip: Add a "When" clause to describe the action being taken';
+    }
+    if ((hasGiven || hasWhen) && !hasThen) {
+      return '💡 Tip: Add a "Then" clause to describe the expected observable outcome';
+    }
+  } else {
+    // bullet format
+    const hasBulletStart = lower.startsWith('the system') || lower.startsWith('the user') ||
+      lower.startsWith('user can') || lower.startsWith('system must');
+    if (!hasBulletStart) {
+      return '💡 Tip: Start with "The system must...", "The user can...", or "The page displays..."';
+    }
+  }
+  return '';
+}
+
 export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const [criteria, setCriteria] = useState(['', '', '']);
   const [format, setFormat] = useState('gherkin');
+  const [criteriaHints, setCriteriaHints] = useState(['', '', '']);
 
   const handleCriterionChange = (index, value) => {
     const newCriteria = [...criteria];
@@ -13,13 +42,16 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const addCriterion = () => {
     if (criteria.length < 5) {
       setCriteria([...criteria, '']);
+      setCriteriaHints([...criteriaHints, '']);
     }
   };
 
   const removeCriterion = (index) => {
     if (criteria.length > 1) {
       const newCriteria = criteria.filter((_, i) => i !== index);
+      const newHints = criteriaHints.filter((_, i) => i !== index);
       setCriteria(newCriteria);
+      setCriteriaHints(newHints);
     }
   };
 
@@ -34,6 +66,18 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
   const handleReset = () => {
     setCriteria(['', '', '']);
     setFormat('gherkin');
+    setCriteriaHints(['', '', '']);
+  };
+
+  const handleCriterionBlur = (index, value) => {
+    const newHints = [...criteriaHints];
+    newHints[index] = getCriterionHint(value, format);
+    setCriteriaHints(newHints);
+  };
+
+  const handleFormatChange = (newFormat) => {
+    setFormat(newFormat);
+    setCriteriaHints(criteria.map(() => ''));
   };
 
   const filledCount = criteria.filter(c => c.trim()).length;
@@ -72,7 +116,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         <div className="flex gap-4 mb-4">
           <button
             type="button"
-            onClick={() => setFormat('gherkin')}
+            onClick={() => handleFormatChange('gherkin')}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'gherkin'
                 ? 'bg-blue-600 text-white'
@@ -83,7 +127,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           </button>
           <button
             type="button"
-            onClick={() => setFormat('bullet')}
+            onClick={() => handleFormatChange('bullet')}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'bullet'
                 ? 'bg-blue-600 text-white'
@@ -120,6 +164,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 id={`criterion-${index}`}
                 value={criterion}
                 onChange={(e) => handleCriterionChange(index, e.target.value)}
+                onBlur={(e) => handleCriterionBlur(index, e.target.value)}
                 placeholder={
                   format === 'gherkin'
                     ? 'Given [context]\nWhen [action]\nThen [outcome]'
@@ -140,6 +185,9 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                 </button>
               )}
             </div>
+            {criteriaHints[index] && (
+              <p className="mt-1 text-xs text-amber-600">{criteriaHints[index]}</p>
+            )}
           </div>
         ))}
       </div>

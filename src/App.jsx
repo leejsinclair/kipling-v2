@@ -80,8 +80,8 @@ function App() {
   };
 
   const handleCriteriaSubmit = (criteriaData) => {
-    const { criteria } = criteriaData;
-    const scoreResult = scoreCriteria(criteria, currentStory?.soThat);
+    const { criteria, format } = criteriaData;
+    const scoreResult = scoreCriteria(criteria, currentStory?.soThat, format);
     setCriteriaResult(scoreResult);
     setSubmittedCriteria(criteria);
     
