@@ -66,18 +66,44 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
     const newCriteria = [...criteria];
     newCriteria[index] = value;
     setCriteria(newCriteria);
+
+    setCriterionFeedback((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+  };
+
+  const handleCriterionBlur = (index, value) => {
+    const feedback = format === 'gherkin'
+      ? scoreGherkinCriterion(value)
+      : scoreBulletCriterion(value);
+
+    setCriterionFeedback((prev) => {
+      const next = [...prev];
+      next[index] = feedback;
+      return next;
+    });
+  };
+
+  const handleFormatChange = (nextFormat) => {
+    setFormat(nextFormat);
+    clearFeedbackForCurrentCriteria();
   };
 
   const addCriterion = () => {
     if (criteria.length < 5) {
       setCriteria([...criteria, '']);
+      setCriteriaHints([...criteriaHints, '']);
     }
   };
 
   const removeCriterion = (index) => {
     if (criteria.length > 1) {
       const newCriteria = criteria.filter((_, i) => i !== index);
+      const newHints = criteriaHints.filter((_, i) => i !== index);
       setCriteria(newCriteria);
+      setCriteriaHints(newHints);
     }
   };
 
@@ -113,20 +139,23 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
     }
   };
 
+  const criterionScoreColor = (score) =>
+    score >= 8 ? 'text-green-600 dark:text-green-400' : score >= 5 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400';
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-6 space-y-4">
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 space-y-4">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
           ✅ Write Acceptance Criteria
         </h2>
-        <p className="text-gray-600 text-sm mb-4">
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
           Define testable conditions that specify when this story is complete
         </p>
         
         {/* Story Context */}
         {storyText && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-            <p className="text-sm text-gray-700">
+          <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded mb-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               <span className="font-semibold">Your Story:</span> {storyText}
             </p>
           </div>
@@ -140,7 +169,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'gherkin'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-600'
             }`}
           >
             Gherkin (Given/When/Then)
@@ -151,7 +180,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               format === 'bullet'
                 ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-600'
             }`}
           >
             Bullet-Point
@@ -159,11 +188,11 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         </div>
 
         {/* Format Example */}
-        <div className="bg-gray-50 rounded-md p-3 mb-4">
-          <p className="text-xs font-semibold text-gray-700 mb-1">
+        <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded mb-4">
+          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
             {formatExamples[format].title} Example:
           </p>
-          <p className="text-xs text-gray-600 whitespace-pre-line font-mono">
+          <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line font-mono">
             {formatExamples[format].example}
           </p>
           <ul className="mt-2 space-y-1">
@@ -182,7 +211,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
           <div key={index} className="relative">
             <label 
               htmlFor={`criterion-${index}`} 
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Criterion {index + 1} {index < 1 && <span className="text-red-500">*</span>}
             </label>
@@ -198,14 +227,14 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
                     : 'The system/user must...'
                 }
                 rows={format === 'gherkin' ? 3 : 2}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 required={index === 0}
               />
               {criteria.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeCriterion(index)}
-                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                  className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                   aria-label="Remove criterion"
                 >
                   ✕
@@ -226,7 +255,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         <button
           type="button"
           onClick={addCriterion}
-          className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-md text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
+          className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           + Add Another Criterion (max 5)
         </button>
@@ -234,9 +263,9 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
 
       {/* Criteria Count */}
       <div className="flex items-center justify-between pt-2">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           Criteria filled: <span className="font-semibold">{filledCount}</span>
-          <span className="text-gray-400 ml-2">(recommended: 3-5)</span>
+          <span className="text-gray-400 dark:text-gray-500 ml-2">(recommended: 3-5)</span>
         </div>
       </div>
 
@@ -252,7 +281,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText }) {
         <button
           type="button"
           onClick={handleReset}
-          className="px-6 py-3 border border-gray-300 rounded-md font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-md font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
         >
           Reset
         </button>

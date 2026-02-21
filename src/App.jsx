@@ -109,6 +109,7 @@ function App() {
     const newStory = {
       ...currentStory,
       criteria: criteria,
+      criteriaFormat: format,
       storyScore: result.totalScore,
       criteriaScore: scoreResult.totalScore,
       combinedScore: result.totalScore + scoreResult.totalScore,

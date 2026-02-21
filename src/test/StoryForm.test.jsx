@@ -32,6 +32,21 @@ describe('StoryForm', () => {
     expect(screen.getByText('1', { selector: '.font-semibold' })).toBeInTheDocument();
   });
 
+  it('should show field score and hint after blur', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+
+    expect(screen.queryByText(/field score:/i)).not.toBeInTheDocument();
+
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'developer');
+    await user.tab();
+
+    expect(screen.getByText(/field score:/i)).toBeInTheDocument();
+    expect(screen.getByText(/hint:/i)).toBeInTheDocument();
+  });
+
   it('should call onSubmit when form is submitted with all fields filled', async () => {
     const user = userEvent.setup();
     const mockSubmit = vi.fn();
@@ -72,12 +87,16 @@ describe('StoryForm', () => {
     await user.type(asAInput, 'developer');
     await user.type(iWantInput, 'to write code');
     await user.type(soThatInput, 'to deliver value');
+
+    await user.tab();
+    expect(screen.getAllByText(/field score:/i).length).toBeGreaterThan(0);
     
     await user.click(screen.getByRole('button', { name: /reset/i }));
     
     expect(asAInput).toHaveValue('');
     expect(iWantInput).toHaveValue('');
     expect(soThatInput).toHaveValue('');
+    expect(screen.queryByText(/field score:/i)).not.toBeInTheDocument();
   });
 
   it('should have Score My Story and Reset buttons', () => {
@@ -86,5 +105,59 @@ describe('StoryForm', () => {
     
     expect(screen.getByRole('button', { name: /score my story/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument();
+  });
+
+  it('should show a hint on blur when "As a" field has a generic value', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'user');
+    await user.tab(); // trigger blur
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should show a hint on blur when "I want" field contains filler words', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const iWantInput = screen.getByLabelText(/i want/i);
+    await user.type(iWantInput, 'to basically do some stuff');
+    await user.tab();
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should show a hint on blur when "So that" field has vague language', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const soThatInput = screen.getByLabelText(/so that/i);
+    await user.type(soThatInput, "it's better");
+    await user.tab();
+    
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+  });
+
+  it('should clear hints when Reset is clicked', async () => {
+    const user = userEvent.setup();
+    const mockSubmit = vi.fn();
+    render(<StoryForm onSubmit={mockSubmit} />);
+    
+    const asAInput = screen.getByLabelText(/as a/i);
+    await user.type(asAInput, 'user');
+    await user.tab();
+    
+    // Hint should be visible
+    expect(screen.getByText(/tip:/i)).toBeInTheDocument();
+    
+    await user.click(screen.getByRole('button', { name: /reset/i }));
+    
+    // Hint should be gone after reset
+    expect(screen.queryByText(/tip:/i)).not.toBeInTheDocument();
   });
 });

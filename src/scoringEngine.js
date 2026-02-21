@@ -173,9 +173,15 @@ function findFillerWords(text) {
 
 function generateSuggestions(story, breakdown) {
   const suggestions = [];
+  const soThatText = story.soThat?.toLowerCase() || '';
+  const hasValuePhrase = VALUE_PHRASES.some((phrase) => soThatText.includes(phrase));
   
   if (breakdown.soThatQuality < 15) {
-    suggestions.push("Try starting your 'So that' with an action verb like 'increase', 'reduce', or 'enable'");
+    if (!hasValuePhrase) {
+      suggestions.push("Try starting your 'So that' with an action verb like 'increase', 'reduce', or 'enable'");
+    } else {
+      suggestions.push("Your 'So that' includes value words—make the outcome even more specific and measurable.");
+    }
   }
   
   if (breakdown.clarity < 8) {

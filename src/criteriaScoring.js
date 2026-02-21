@@ -59,7 +59,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   breakdown.testability = scoreTestability(criteria);
   breakdown.specificity = scoreSpecificity(criteria);
   breakdown.alignment = scoreAlignment(criteria, storyValue);
-  breakdown.completeness = scoreCompleteness(criteria);
+  breakdown.completeness = scoreCompleteness(criteria, format);
 
   // Calculate total (max 55 points for criteria, matching story max)
   totalScore = breakdown.format + breakdown.testability + breakdown.specificity + 
@@ -69,7 +69,11 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   if (breakdown.format >= 8) {
     feedback.push('Excellent format! Your criteria follow a clear structure.');
   } else if (breakdown.format < 5) {
-    feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
+    if (format === 'bullet') {
+      feedback.push('Consider starting each criterion with "The system must..." or "The user can..." for clearer criteria.');
+    } else {
+      feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
+    }
   }
 
   if (breakdown.testability >= 12) {
@@ -96,7 +100,11 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
 
   // Generate suggestions
   if (breakdown.format < 8) {
-    suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
+    if (format === 'bullet') {
+      suggestions.push('Try starting each criterion with "The system must...", "The user can...", or "The page displays..."');
+    } else {
+      suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
+    }
   }
 
   if (breakdown.testability < 10) {
@@ -269,37 +277,45 @@ function scoreAlignment(criteria, storyValue) {
  * Score completeness (Given/When/Then or equivalent coverage)
  * Max: 10 points
  */
-function scoreCompleteness(criteria) {
+function scoreCompleteness(criteria, selectedFormat = 'gherkin') {
   let score = 0;
-  let hasContext = false;
-  let hasAction = false;
-  let hasOutcome = false;
 
-  criteria.forEach(criterion => {
-    const lower = criterion.toLowerCase();
-    
-    // Check for Given (context)
-    if (GHERKIN_KEYWORDS.given.some(kw => lower.includes(kw))) {
-      hasContext = true;
-    }
-    
-    // Check for When (action)
-    if (GHERKIN_KEYWORDS.when.some(kw => lower.includes(kw))) {
-      hasAction = true;
-    }
-    
-    // Check for Then (outcome)
-    if (GHERKIN_KEYWORDS.then.some(kw => lower.includes(kw))) {
-      hasOutcome = true;
-    }
-  });
+  if (selectedFormat === 'bullet') {
+    // For bullet format: check for behavioral coverage (must/can/displays patterns)
+    let hasMust = false;
+    let hasCan = false;
+    let hasDisplays = false;
 
-  // Award points for coverage
-  if (hasContext) score += 3;
-  if (hasAction) score += 3;
-  if (hasOutcome) score += 4;
+    criteria.forEach(criterion => {
+      const lower = criterion.toLowerCase();
+      if (lower.includes('must') || lower.includes('shall')) hasMust = true;
+      if (lower.includes('can') || lower.includes('able to')) hasCan = true;
+      if (lower.includes('display') || lower.includes('show') || lower.includes('appear') ||
+          lower.includes('message') || lower.includes('notification')) hasDisplays = true;
+    });
+
+    if (hasMust) score += 3;
+    if (hasCan) score += 3;
+    if (hasDisplays) score += 4;
+  } else {
+    // Gherkin: check for Given/When/Then coverage
+    let hasContext = false;
+    let hasAction = false;
+    let hasOutcome = false;
+
+    criteria.forEach(criterion => {
+      const lower = criterion.toLowerCase();
+      if (GHERKIN_KEYWORDS.given.some(kw => lower.includes(kw))) hasContext = true;
+      if (GHERKIN_KEYWORDS.when.some(kw => lower.includes(kw))) hasAction = true;
+      if (GHERKIN_KEYWORDS.then.some(kw => lower.includes(kw))) hasOutcome = true;
+    });
+
+    if (hasContext) score += 3;
+    if (hasAction) score += 3;
+    if (hasOutcome) score += 4;
+  }
   
-  // Award points for having multiple criteria
+  // Award points for having multiple criteria (applies to both formats)
   if (criteria.length >= 3) score += 3;
   if (criteria.length >= 5) score += 2;
 
