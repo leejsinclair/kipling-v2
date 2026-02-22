@@ -7,9 +7,9 @@
 const VALUE_PHRASES = [
   'increase', 'reduce', 'enable', 'improve', 'access', 'understand',
   'save', 'automate', 'simplify', 'enhance', 'provide', 'allow',
-  'track', 'manage', 'control', 'optimize', 'streamline', 'eliminate',
+  'track', 'manage', 'control', 'optimize', 'optimise', 'streamline', 'eliminate',
   'achieve', 'ensure', 'maintain', 'deliver', 'create', 'view',
-  'generate', 'decrease', 'minimize', 'maximize', 'accelerate'
+  'generate', 'decrease', 'minimize', 'minimise', 'maximize', 'maximise', 'accelerate'
 ];
 
 // Filler words that should be penalized
@@ -49,7 +49,7 @@ const BUSINESS_METRICS = [
   'retention', 'churn', 'engagement', 'throughput', 'speed', 'accuracy',
   'error', 'defect', 'downtime', 'uptime', 'response time', 'latency',
   'sales', 'profit', 'margin', 'roi', 'compliance', 'risk', 'quality',
-  'customer satisfaction', 'nps', 'utilization', 'capacity', 'backlog',
+  'customer satisfaction', 'nps', 'utilization', 'utilisation', 'capacity', 'backlog',
   'ticket', 'resolution time', 'processing time', 'load time', 'wait time',
   'abandonment', 'cart abandonment', 'bounce rate', 'click-through', 'ctr'
 ];

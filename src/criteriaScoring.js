@@ -33,7 +33,8 @@ const VAGUE_TERMS = [
 const VALUE_VERBS = [
   'increase', 'reduce', 'enable', 'improve', 'access', 'save',
   'automate', 'simplify', 'enhance', 'provide', 'allow', 'ensure',
-  'maintain', 'prevent', 'support', 'facilitate'
+  'maintain', 'prevent', 'support', 'facilitate',
+  'optimise', 'minimise', 'maximise'
 ];
 
 /**
@@ -89,7 +90,7 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
   if (breakdown.specificity >= 8) {
     feedback.push('Nice specificity! Your criteria are clear and unambiguous.');
   } else {
-    feedback.push('Avoid vague language. Be more specific about expected behaviors.');
+    feedback.push('Avoid vague language. Be more specific about expected behaviours.');
   }
 
   if (breakdown.alignment >= 8) {
@@ -503,7 +504,11 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
     const criterionLower = criterion.toLowerCase();
     
     // Extract key value verbs and metrics from story
-    const valueVerbs = ['reduce', 'increase', 'improve', 'enable', 'save', 'automate', 'simplify', 'enhance', 'prevent', 'ensure'];
+    const valueVerbs = [
+      'reduce', 'increase', 'improve', 'enable', 'save', 'automate',
+      'simplify', 'enhance', 'prevent', 'ensure',
+      'optimise', 'minimise', 'maximise'
+    ];
     const foundVerbs = valueVerbs.filter(verb => storyLower.includes(verb));
     
     // Check if criterion mentions same concepts

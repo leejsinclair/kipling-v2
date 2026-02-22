@@ -5,7 +5,7 @@ This document provides instructions for enabling GitHub Pages deployment for the
 ## Prerequisites
 
 - Repository owner or admin access to the GitHub repository
-- GitHub Pages enabled for your account/organization
+- GitHub Pages enabled for your account/organisation
 
 ## Setup Steps
 

@@ -116,7 +116,7 @@ describe('scoreSingleCriterion', () => {
 
   // Bullet Point Format Tests
   describe('Bullet Format - Excellent (11-12 points)', () => {
-    it('should score highly for clear system behavior', () => {
+    it('should score highly for clear system behaviour', () => {
       const result = scoreSingleCriterion(
         'The system displays a confirmation message with the order number and redirects to the order details page',
         'bullet'
@@ -144,7 +144,7 @@ describe('scoreSingleCriterion', () => {
       expect(result.grade).toBe('Excellent');
     });
 
-    it('should score good for specific UI behavior', () => {
+    it('should score good for specific UI behaviour', () => {
       const result = scoreSingleCriterion(
         'System must display a loading spinner while the API request is in progress and disable the submit button',
         'bullet'

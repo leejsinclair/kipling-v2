@@ -40,6 +40,12 @@ describe('scoreSoThatStatement', () => {
       expect(result.score).toBeGreaterThanOrEqual(17);
       expect(result.grade).toBe('Excellent');
     });
+
+    it('should score highly for UK/AU spellings with measurable outcomes', () => {
+      const result = scoreSoThatStatement('we can minimise response time by 40% and improve resource utilisation');
+      expect(result.score).toBeGreaterThanOrEqual(17);
+      expect(result.grade).toBe('Excellent');
+    });
   });
 
   // Good cases (13-16 points) - Missing one or two elements

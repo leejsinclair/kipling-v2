@@ -94,6 +94,17 @@ describe('scoreCriteria', () => {
     expect(result.breakdown.alignment).toBeGreaterThan(5);
   });
 
+  it('should score alignment with UK/AU value verb spellings', () => {
+    const criteria = [
+      'The system should optimise the review workflow for analysts',
+      'The user can minimise repetitive data entry during onboarding'
+    ];
+    const storyValue = 'I can optimise operations and minimise manual effort';
+
+    const result = scoreCriteria(criteria, storyValue);
+    expect(result.breakdown.alignment).toBeGreaterThan(5);
+  });
+
   it('should return criteria count', () => {
     const criteria = ['criterion 1', 'criterion 2', 'criterion 3'];
     

@@ -70,6 +70,17 @@ describe('scoreStory', () => {
     expect(result.breakdown.soThatQuality).toBeGreaterThan(10);
   });
 
+  it('should reward UK/AU value-oriented spellings in "so that"', () => {
+    const story = {
+      asA: 'operations manager',
+      iWant: 'to improve deployment workflows',
+      soThat: 'I can optimise release cadence and minimise manual effort'
+    };
+
+    const result = scoreStory(story);
+    expect(result.breakdown.soThatQuality).toBeGreaterThan(10);
+  });
+
   it('should return feedback and suggestions', () => {
     const story = {
       asA: 'user',
