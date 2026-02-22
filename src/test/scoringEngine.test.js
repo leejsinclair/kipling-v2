@@ -132,30 +132,36 @@ describe('calculateProgression', () => {
     expect(nextLevel.name).toBe('Apprentice');
   });
 
-  it('should reach Apprentice at 100 XP', () => {
-    const { currentLevel, nextLevel } = calculateProgression(100);
+  it('should reach Apprentice at 500 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(500);
     expect(currentLevel.name).toBe('Apprentice');
     expect(nextLevel.name).toBe('Writer');
   });
 
-  it('should reach Writer at 300 XP', () => {
-    const { currentLevel } = calculateProgression(300);
+  it('should reach Writer at 1500 XP', () => {
+    const { currentLevel } = calculateProgression(1500);
     expect(currentLevel.name).toBe('Writer');
   });
 
-  it('should reach Storyteller at 600 XP', () => {
-    const { currentLevel } = calculateProgression(600);
+  it('should reach Storyteller at 3500 XP', () => {
+    const { currentLevel } = calculateProgression(3500);
     expect(currentLevel.name).toBe('Storyteller');
   });
 
-  it('should reach Product Sage at 1000 XP', () => {
-    const { currentLevel, nextLevel } = calculateProgression(1000);
+  it('should reach Product Visionary at 30000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(30000);
+    expect(currentLevel.name).toBe('Product Visionary');
+    expect(nextLevel.name).toBe('Roadmap Oracle');
+  });
+
+  it('should reach Product Sage at 50000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(50000);
     expect(currentLevel.name).toBe('Product Sage');
     expect(nextLevel).toBeNull();
   });
 
-  it('should stay at Product Sage beyond 1000 XP', () => {
-    const { currentLevel, nextLevel } = calculateProgression(5000);
+  it('should stay at Product Sage beyond 50000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(75000);
     expect(currentLevel.name).toBe('Product Sage');
     expect(nextLevel).toBeNull();
   });
