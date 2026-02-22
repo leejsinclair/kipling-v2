@@ -239,7 +239,7 @@ function App() {
         {/* Phase 1 Results */}
         {result && phase !== 'story' && (
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">📝 Your Story Score</h2>
+            <h2 className="text-2xl font-bold text-gray-200 mb-4">📝 Your Story Score</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <ScoreBreakdown result={result} />
               <FeedbackPanel result={result} />
@@ -324,26 +324,26 @@ function App() {
 
         {/* Info Section */}
         {phase === 'story' && !result && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mt-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">How It Works</h2>
+          <div className="dark:bg-slate-800 rounded-lg shadow-lg p-6 mt-8">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">How It Works</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <div className="text-3xl mb-2">✍️</div>
-                <h3 className="font-semibold text-gray-800 mb-2">1. Write Story</h3>
+                <h3 className="font-semibold text-gray-200 mb-2">1. Write Story</h3>
                 <p className="text-sm text-gray-600">
                   Fill in the three fields to create a complete user story in agile format
                 </p>
               </div>
               <div>
                 <div className="text-3xl mb-2">✅</div>
-                <h3 className="font-semibold text-gray-800 mb-2">2. Add Criteria</h3>
+                <h3 className="font-semibold text-gray-200 mb-2">2. Add Criteria</h3>
                 <p className="text-sm text-gray-600">
                   Write acceptance criteria that define when the story is complete
                 </p>
               </div>
               <div>
                 <div className="text-3xl mb-2">🎯</div>
-                <h3 className="font-semibold text-gray-800 mb-2">3. Level Up</h3>
+                <h3 className="font-semibold text-gray-200 mb-2">3. Level Up</h3>
                 <p className="text-sm text-gray-600">
                   Earn XP, unlock achievements, and progress from Novice to Product Sage
                 </p>
