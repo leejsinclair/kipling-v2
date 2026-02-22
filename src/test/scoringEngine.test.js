@@ -148,6 +148,23 @@ describe('calculateProgression', () => {
     expect(currentLevel.name).toBe('Storyteller');
   });
 
+  it('should reach Narrative Ninja at 7000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(7000);
+    expect(currentLevel.name).toBe('Narrative Ninja');
+    expect(nextLevel.name).toBe('Backlog Architect');
+  });
+
+  it('should reach Backlog Architect at 12000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(12000);
+    expect(currentLevel.name).toBe('Backlog Architect');
+    expect(nextLevel.name).toBe('Value Strategist');
+  });
+
+  it('should reach Value Strategist at 20000 XP', () => {
+    const { currentLevel, nextLevel } = calculateProgression(20000);
+    expect(currentLevel.name).toBe('Value Strategist');
+    expect(nextLevel.name).toBe('Product Visionary');
+  });
   it('should reach Product Visionary at 30000 XP', () => {
     const { currentLevel, nextLevel } = calculateProgression(30000);
     expect(currentLevel.name).toBe('Product Visionary');
