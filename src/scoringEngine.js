@@ -405,10 +405,15 @@ export function scoreSoThatStatement(soThat) {
 export function calculateProgression(totalXP) {
   const levels = [
     { name: 'Novice', threshold: 0 },
-    { name: 'Apprentice', threshold: 100 },
-    { name: 'Writer', threshold: 300 },
-    { name: 'Storyteller', threshold: 600 },
-    { name: 'Product Sage', threshold: 1000 }
+    { name: 'Apprentice', threshold: 500 },
+    { name: 'Writer', threshold: 1500 },
+    { name: 'Storyteller', threshold: 3500 },
+    { name: 'Narrative Ninja', threshold: 7000 },
+    { name: 'Backlog Architect', threshold: 12000 },
+    { name: 'Value Strategist', threshold: 20000 },
+    { name: 'Product Visionary', threshold: 30000 },
+    { name: 'Roadmap Oracle', threshold: 40000 },
+    { name: 'Product Sage', threshold: 50000 }
   ];
   
   let currentLevel = levels[0];
