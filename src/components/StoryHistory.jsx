@@ -376,9 +376,9 @@ export default function StoryHistory({
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="dark:bg-slate-800 rounded-lg shadow-lg p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Story History</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Story History</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -405,7 +405,7 @@ export default function StoryHistory({
         {stories.slice().reverse().map((story) => (
           <div
             key={story.timestamp}
-            className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
+            className="p-4 border border-gray-900 rounded-lg hover:border-gray-700 transition-colors"
           >
             <div className="flex justify-between items-start mb-2">
               <div className="flex-1">

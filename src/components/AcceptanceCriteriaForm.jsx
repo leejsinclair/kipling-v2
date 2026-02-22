@@ -419,6 +419,21 @@ function getBreakdownTooltip(key, data, format) {
   }
 }
 
+function parseStoryText(storyText) {
+  if (!storyText) return null;
+
+  const normalized = storyText.replace(/\s+/g, ' ').trim();
+  const match = normalized.match(/^As a\s+(.+?),\s*I want\s+(.+?)\s+so that\s+(.+?)(?:\.)?$/i);
+
+  if (!match) return null;
+
+  return [
+    { label: 'As a', value: match[1].trim() },
+    { label: 'I want', value: match[2].trim() },
+    { label: 'So that', value: match[3].trim() }
+  ];
+}
+
 export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCriteriaData = null }) {
   const [criteria, setCriteria] = useState(() => normalizeCriteria(
     Array.isArray(initialCriteriaData?.criteria) ? initialCriteriaData.criteria : []
@@ -431,6 +446,8 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
   const [savedTemplates, setSavedTemplates] = useState(() => loadSavedTemplates());
   const [templateName, setTemplateName] = useState('');
   const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState('');
+  const [isHintsExpanded, setIsHintsExpanded] = useState(false);
+  const parsedStoryText = parseStoryText(storyText);
 
   useEffect(() => {
     localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(savedTemplates));
@@ -573,26 +590,53 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
         
         {/* Story Context */}
         {storyText && (
-          <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded mb-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">Your Story:</span> {storyText}
-            </p>
+          <div className="bg-gray-100 dark:bg-slate-900 px-3 py-2 rounded mb-4">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="font-semibold mb-1">Your Story:</p>
+              {parsedStoryText ? (
+                <div className="space-y-1">
+                  {parsedStoryText.map((part) => (
+                    <p key={part.label}>
+                      <span className="font-semibold">{part.label}</span> {part.value}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p>{storyText}</p>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Format Example */}
-        <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded mb-4">
-          <ul className="mt-2 space-y-1">
-            {FORMAT_HINTS[format].map((tip, i) => (
-              <li key={i} className="text-xs text-gray-500 flex gap-1">
-                <span>•</span><span>{tip}</span>
-              </li>
-            ))}
-          </ul>
+        {/* Acceptance Criteria Hints */}
+        <div className="bg-gray-100 dark:bg-slate-800 px-3 py-2 rounded mb-4">
+          <button
+            type="button"
+            onClick={() => setIsHintsExpanded((prev) => !prev)}
+            className="w-full flex items-center justify-between text-left"
+            aria-expanded={isHintsExpanded}
+            aria-controls="acceptance-criteria-hints"
+          >
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Acceptance Criteria Hints
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400" aria-hidden="true">
+              {isHintsExpanded ? '▾' : '▸'}
+            </span>
+          </button>
+          {isHintsExpanded && (
+            <ul id="acceptance-criteria-hints" className="mt-2 space-y-1">
+              {FORMAT_HINTS[format].map((tip, i) => (
+                <li key={i} className="text-xs text-gray-500 flex gap-1">
+                  <span>•</span><span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-          <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4 rounded border border-gray-700">
+          <div className="dark:bg-slate-800 px-3 py-2 rounded">
             <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Default {format === 'gherkin' ? 'Gherkin' : 'Bullet'} Templates:
             </p>
@@ -610,7 +654,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
             </div>
           </div>
 
-          <div className="bg-gray-100 dark:bg-slate-700 px-3 py-2 rounded">
+          <div className="dark:bg-slate-800 px-3 py-2 rounded">
             <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Saved Templates:
             </p>

@@ -6,13 +6,13 @@ export default function ScoreBreakdown({ result }) {
   const scoreColor = totalScore >= 50 ? 'text-green-600' : totalScore >= 35 ? 'text-yellow-600' : 'text-red-600';
   
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
+    <div className="dark:bg-slate-800 rounded-lg shadow-lg p-6">
       <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">Your Score</h3>
+        <h3 className="text-lg font-semibold text-gray-300 mb-2">Your Score</h3>
         <div className={`text-5xl font-bold ${scoreColor}`}>
           {totalScore}
         </div>
-        <div className="text-sm text-gray-500 mt-1">out of 55 points</div>
+        <div className="text-sm text-gray-400 mt-1">out of 55 points</div>
       </div>
       
       <div className="space-y-3">
@@ -46,7 +46,7 @@ function ScoreBar({ label, score, maxScore, info, tooltip }) {
     <div>
       <div className="flex justify-between items-center mb-1">
         <div className="flex items-center gap-1">
-          <span className="text-sm font-medium text-gray-700">{label}</span>
+          <span className="text-sm font-medium text-gray-500">{label}</span>
           {tooltip && (
             <div className="group relative inline-block">
               <svg 
