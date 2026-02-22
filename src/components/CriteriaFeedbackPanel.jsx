@@ -57,7 +57,7 @@ export default function CriteriaFeedbackPanel({ result }) {
           </div>
           <div className="flex items-start gap-2">
             <span className="text-green-600">✓</span>
-            <span>Be specific about expected behaviors and results</span>
+            <span>Be specific about expected behaviours and results</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="text-green-600">✓</span>

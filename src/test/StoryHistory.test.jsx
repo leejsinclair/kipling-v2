@@ -190,7 +190,7 @@ describe('StoryHistory', () => {
       criteria: ['<script>dangerous()</script>criterion']
     };
 
-    // Create a temporary div to access escapeHtml behavior
+    // Create a temporary div to access escapeHtml behaviour
     const testDiv = document.createElement('div');
     testDiv.textContent = maliciousStory.asA;
     const escapedAsA = testDiv.innerHTML;

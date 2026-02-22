@@ -20,7 +20,7 @@ Describe how you tested these changes.
 - 
 
 ## 📸 Screenshots (optional)
-Add screenshots or GIFs if the change affects UI or behavior.
+Add screenshots or GIFs if the change affects UI or behaviour.
 
 ## ✅ Checklist
 - [ ] Code compiles and runs

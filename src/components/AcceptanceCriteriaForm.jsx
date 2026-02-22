@@ -26,7 +26,7 @@ const DEFAULT_TEMPLATES = {
       id: 'gui',
       label: 'GUI Changes',
       criteria: [
-        'Given the user is viewing the dashboard page\nWhen they click the "Create Report" button in the top toolbar\nThen the system displays a modal dialog with the report configuration form\nAnd the modal appears centered on screen with a semi-transparent backdrop\nAnd keyboard focus is automatically placed on the "Report Name" input field',
+        'Given the user is viewing the dashboard page\nWhen they click the "Create Report" button in the top toolbar\nThen the system displays a modal dialog with the report configuration form\nAnd the modal appears centred on screen with a semi-transparent backdrop\nAnd keyboard focus is automatically placed on the "Report Name" input field',
         'Given the UI is loading data from the server\nWhen the request is in progress\nThen the system displays an accessible loading spinner in the center of the content area\nAnd the loading indicator includes ARIA labels for screen readers\nAnd interactive elements below the spinner are disabled during loading',
         'Given a user has entered invalid data in the email field\nAnd the user has left the password field empty\nWhen they click the submit button\nThen the system displays inline validation errors for both fields\nAnd the submit button remains disabled\nAnd focus is moved to the first invalid field'
       ]
@@ -100,7 +100,7 @@ const DEFAULT_TEMPLATES = {
       id: 'gui',
       label: 'GUI Changes',
       criteria: [
-        'The system displays a modal dialog centered on screen when the user clicks the "Create Report" button, automatically places keyboard focus on the first input field labeled "Report Name", allows closing via ESC key or clicking the semi-transparent backdrop, and includes a close button with an X icon in the top-right corner.',
+        'The system displays a modal dialog centred on screen when the user clicks the "Create Report" button, automatically places keyboard focus on the first input field labeled "Report Name", allows closing via ESC key or clicking the semi-transparent backdrop, and includes a close button with an X icon in the top-right corner.',
         'When the user hovers over the primary navigation items, a dropdown menu appears within 200ms and remains visible while the cursor is over either the parent item or the dropdown, closes after 300ms when the cursor leaves both areas, and highlights the currently active navigation item with a blue underline indicator.',
         'The system displays form validation errors inline below each invalid field using red text and an error icon, announces errors to screen readers immediately upon blur event, keeps the submit button disabled until all required fields are valid and properly formatted, and automatically moves focus to the first invalid field when submit is attempted with invalid data.'
       ]
@@ -387,7 +387,7 @@ function getBreakdownTooltip(key, data, format) {
           'Add observable outcomes: "displays", "shows", "redirects", "appears"',
           'Specify UI elements: "error message below field", "confirmation modal"',
           'Avoid vague results: instead of "processes", say "displays success message"',
-          'Include measurable behavior: "button becomes disabled", "icon updates to show 3 items"'
+          'Include measurable behaviour: "button becomes disabled", "icon updates to show 3 items"'
         ]
       };
 
