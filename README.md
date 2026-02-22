@@ -124,6 +124,16 @@ This project is open source and available under the MIT License.
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## 👥 Community
+
+- [Code of Conduct](.github/CODE_OF_CONDUCT.md)
+- [Contributing Guide](.github/CONTRIBUTING.md)
+- [Issue Templates](.github/ISSUE_TEMPLATE/)
+
+This repository accepts issue reports only for code bugs and functional product requests.
+
+Maintenance mode: this is a personal project with limited maintainer capacity, so issue and PR responses may be delayed or unavailable.
+
 ## 📖 Based on Story Plan
 
 This application was built following the comprehensive story plan in `storyplan.md`, which defines:
