@@ -55,7 +55,7 @@ describe('StoryForm', () => {
     await user.type(screen.getByLabelText(/i want/i), 'to write tests');
     await user.type(screen.getByLabelText(/so that/i), 'I can ensure quality');
     
-    await user.click(screen.getByRole('button', { name: /score my story/i }));
+    await user.click(screen.getByRole('button', { name: /score draft story/i }));
     
     expect(mockSubmit).toHaveBeenCalledWith({
       asA: 'developer',
@@ -69,7 +69,7 @@ describe('StoryForm', () => {
     const mockSubmit = vi.fn();
     render(<StoryForm onSubmit={mockSubmit} />);
     
-    await user.click(screen.getByRole('button', { name: /score my story/i }));
+    await user.click(screen.getByRole('button', { name: /score draft story/i }));
     
     expect(mockSubmit).not.toHaveBeenCalled();
   });
@@ -98,11 +98,11 @@ describe('StoryForm', () => {
     expect(screen.queryByText(/tip:/i)).not.toBeInTheDocument();
   });
 
-  it('should have Score My Story and Reset buttons', () => {
+  it('should have score draft story and Reset buttons', () => {
     const mockSubmit = vi.fn();
     render(<StoryForm onSubmit={mockSubmit} />);
     
-    expect(screen.getByRole('button', { name: /score my story/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /score draft story/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument();
   });
 

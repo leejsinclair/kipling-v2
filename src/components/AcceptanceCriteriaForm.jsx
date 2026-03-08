@@ -884,7 +884,7 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
           className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={filledCount === 0}
         >
-          Score My Criteria
+          Score Draft Criteria
         </button>
       </div>
     </form>

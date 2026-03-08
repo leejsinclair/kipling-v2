@@ -286,7 +286,7 @@ export default function StoryForm({ onSubmit, initialStory = null }) {
           type="submit"
           className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 transition-colors"
         >
-          Score My Story
+          Score Draft Story
         </button>
       </div>
     </form>

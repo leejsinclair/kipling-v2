@@ -46,6 +46,8 @@ These instructions apply when updating npm dependencies in this repository.
 ## Known Project Notes
 
 - This repo uses Vite + React + ESLint flat config.
+- Tested Node.js version: `24.2.0`.
+- If `nvm` is installed, run `nvm use` in bash terminals before running npm scripts.
 - Lint must pass with `npm run lint` after upgrades.
 - Test baseline is Vitest (`npm run test -- --run`).
 - If ESLint major upgrades introduce new rule failures, prefer minimal code changes over rule disablement.

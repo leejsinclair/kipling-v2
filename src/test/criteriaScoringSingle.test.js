@@ -289,6 +289,23 @@ describe('scoreSingleCriterion', () => {
       expect(result.score).toBeLessThan(8);
       expect(result.feedback.length).toBeGreaterThan(0);
     });
+
+    it('should keep strong specificity for long technical criteria with concrete details', () => {
+      const result = scoreSingleCriterion(
+        'Given a user attempts to create a new order record\nAnd the order contains line items with valid product IDs\nAnd the customer ID exists in the customers table\nWhen the user commits the transaction as the logged-in user\nThen the system responds with a success status 201 Created\nAnd the response body contains a message Order successfully created\nAnd the order is inserted into the orders table with a unique order ID\nAnd all line items are inserted into the order_lines table with the corresponding order ID\nAnd the customer last_order_date is updated to the current date\nAnd the product inventory is decremented for each item and an inventory update notification is sent to the inventory management system',
+        'gherkin',
+      );
+      expect(result.breakdown.specificity.score).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should award alignment for value-verb synonyms', () => {
+      const result = scoreSingleCriterion(
+        'Given the order queue is backlogged\nWhen the workflow batch job runs\nThen the system decreases manual review effort by auto-routing low-risk orders',
+        'gherkin',
+        'So that we can reduce manual effort and improve processing speed',
+      );
+      expect(result.breakdown.alignment.score).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // Feedback Quality
