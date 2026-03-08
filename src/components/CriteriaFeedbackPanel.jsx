@@ -1,5 +1,5 @@
 export default function CriteriaFeedbackPanel({ result }) {
-  const { feedback, suggestions } = result;
+  const { feedback, suggestions, hintTargets } = result;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -40,6 +40,24 @@ export default function CriteriaFeedbackPanel({ result }) {
             >
               <div className="text-purple-600 text-lg flex-shrink-0">💡</div>
               <div className="text-sm text-gray-700">{suggestion}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Score-targeted hint targets */}
+      {hintTargets && hintTargets.length > 0 && (
+        <div className="space-y-3 mt-6">
+          <div className="text-sm font-semibold text-gray-700 mb-2">
+            Score-Targeted Hints:
+          </div>
+          {hintTargets.map((hint, index) => (
+            <div
+              key={index}
+              className="flex items-start gap-3 bg-amber-50 border-l-4 border-amber-400 p-3 rounded"
+            >
+              <div className="text-amber-600 text-lg flex-shrink-0">🎯</div>
+              <div className="text-sm text-gray-700">{hint}</div>
             </div>
           ))}
         </div>

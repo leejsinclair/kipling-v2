@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
+import { scoreStory } from '../scoringEngine';
 
 beforeEach(() => {
   localStorage.clear();
@@ -21,6 +22,12 @@ const TEST_STORY = {
   asA: 'customer support manager',
   iWant: 'to export weekly incident summaries',
   soThat: 'I can reduce weekly reporting time by 40%',
+};
+
+const SECOND_STORY = {
+  asA: 'warehouse supervisor',
+  iWant: 'to schedule inventory recount tasks',
+  soThat: 'I can reduce missed stock discrepancies by 30%',
 };
 
 const TEST_CRITERION =
@@ -159,6 +166,31 @@ describe('Draft / Final flow', () => {
     });
   });
 
+  it('applies a single criteria suggestion without overwriting all criteria', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await enableAI(user);
+    await draftScoreStory(user);
+    await confirmAndFinalScoreStory(user);
+
+    await waitFor(() => screen.getByRole('button', { name: /score draft criteria/i }));
+    await draftScoreCriteria(user);
+
+    await user.click(screen.getByRole('button', { name: /improve criteria with ai/i }));
+    await waitFor(() => screen.getByText(/ai suggestion/i));
+
+    const applyButtons = screen.getAllByRole('button', { name: /apply suggestion/i });
+    expect(applyButtons.length).toBeGreaterThan(0);
+
+    await user.click(applyButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/ai suggestion/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /applied/i })).toBeDisabled();
+    });
+  });
+
   it('criteria draft scoring does not award XP', async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -252,5 +284,35 @@ describe('Draft / Final flow', () => {
 
     // Story form should be visible again
     expect(screen.getByLabelText(/as a/i)).toBeInTheDocument();
+  });
+
+  it('loading criteria from history does not overwrite active story score', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Create one completed historical session.
+    await draftScoreStory(user, TEST_STORY);
+    await confirmAndFinalScoreStory(user);
+    await waitFor(() => screen.getByRole('button', { name: /score draft criteria/i }));
+    await draftScoreCriteria(user);
+    await confirmAndFinalScoreCriteria(user);
+
+    // Start a new session and score a different story to criteria phase.
+    await waitFor(() => screen.getByRole('button', { name: /start new story/i }));
+    await user.click(screen.getByRole('button', { name: /start new story/i }));
+
+    await draftScoreStory(user, SECOND_STORY);
+    await confirmAndFinalScoreStory(user);
+    await waitFor(() => screen.getByRole('button', { name: /score draft criteria/i }));
+
+    const secondStoryScore = scoreStory(SECOND_STORY).totalScore;
+    expect(screen.getByText('📝 Your Story Score')).toBeInTheDocument();
+    expect(screen.getAllByText(String(secondStoryScore)).length).toBeGreaterThan(0);
+
+    // Load criteria from history item; active story score should remain unchanged.
+    await user.click(screen.getByRole('button', { name: /load criteria/i }));
+
+    expect(screen.getByRole('button', { name: /score draft criteria/i })).toBeInTheDocument();
+    expect(screen.getAllByText(String(secondStoryScore)).length).toBeGreaterThan(0);
   });
 });

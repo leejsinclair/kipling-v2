@@ -196,9 +196,14 @@ function App() {
         format: criteriaDraftInput?.format,
         draftScore: criteriaDraftResult?.totalScore,
         breakdown: criteriaDraftResult?.breakdown,
+        hintTargets: criteriaDraftResult?.hintTargets,
+        story: confirmedStory,
         apiKey: aiApiKey,
       });
-      setCriteriaAISuggestion(suggestion);
+      setCriteriaAISuggestion({
+        ...suggestion,
+        suggestions: (suggestion?.suggestions || []).map(item => ({ ...item, applied: false })),
+      });
     } catch (err) {
       setCriteriaAIError(err?.message ?? 'AI improvement failed.');
     } finally {
@@ -218,6 +223,43 @@ function App() {
     setCriteriaAISuggestion(null);
     setCriteriaDraftResult(null);
     setCriteriaDraftInput(null);
+  };
+
+  // Apply one AI criteria suggestion by replacing the associated original criterion.
+  const handleApplySingleCriteriaSuggestion = (suggestionIndex) => {
+    const suggestion = criteriaAISuggestion?.suggestions?.[suggestionIndex];
+    if (!suggestion || suggestion.applied || !criteriaDraftInput?.criteria) return;
+
+    const currentCriteria = [...criteriaDraftInput.criteria];
+    const originalNormalized = (suggestion.original || '').trim();
+
+    let targetIndex = currentCriteria.findIndex(c => (c || '').trim() === originalNormalized);
+    if (targetIndex < 0 && suggestionIndex < currentCriteria.length) {
+      targetIndex = suggestionIndex;
+    }
+    if (targetIndex < 0) return;
+
+    currentCriteria[targetIndex] = suggestion.improved;
+
+    setInitialCriteriaData({
+      criteria: currentCriteria,
+      format: criteriaDraftInput?.format ?? 'gherkin',
+    });
+    setCriteriaFormVersion(prev => prev + 1);
+    setCriteriaDraftInput({
+      criteria: currentCriteria,
+      format: criteriaDraftInput?.format ?? 'gherkin',
+    });
+
+    setCriteriaAISuggestion(prev => {
+      if (!prev?.suggestions) return null;
+      return {
+        ...prev,
+        suggestions: prev.suggestions.map((item, idx) => (
+          idx === suggestionIndex ? { ...item, applied: true } : item
+        )),
+      };
+    });
   };
 
   const handleConfirmCriteria = () => {
@@ -314,15 +356,26 @@ function App() {
   };
 
   const handleLoadCriteriaFromHistory = (story) => {
-    // Restore story as confirmed so criteria can be scored against it
-    const storyObj = {
-      asA: story.asA || '',
-      iWant: story.iWant || '',
-      soThat: story.soThat || '',
-    };
-    setConfirmedStory(storyObj);
-    setStoryDraftInput(storyObj);
-    setStoryFinalResult({ totalScore: story.storyScore ?? 0, breakdown: {}, wordCount: 0 });
+    // Preserve active story/scoring context when user is already in-progress.
+    // Only hydrate story context from history if no current story context exists.
+    const hasActiveStoryContext = Boolean(
+      confirmedStory || storyFinalResult || storyDraftInput || storyDraftResult,
+    );
+
+    if (!hasActiveStoryContext) {
+      const storyObj = {
+        asA: story.asA || '',
+        iWant: story.iWant || '',
+        soThat: story.soThat || '',
+      };
+      setConfirmedStory(storyObj);
+      setStoryDraftInput(storyObj);
+      setStoryFinalResult({ totalScore: story.storyScore ?? 0, breakdown: {}, wordCount: 0 });
+    } else if (!confirmedStory && storyDraftInput) {
+      // If user has only draft story state, keep their own draft as the criteria anchor.
+      setConfirmedStory(storyDraftInput);
+    }
+
     setInitialCriteriaData({
       criteria: Array.isArray(story.criteria) ? story.criteria : [],
       format: story.criteriaFormat === 'bullet' ? 'bullet' : 'gherkin',
@@ -333,7 +386,6 @@ function App() {
     setConfirmedCriteria(null);
     setCriteriaFinalResult(null);
     setCriteriaAISuggestion(null);
-    setStoryDraftResult(null);
     setStoryAISuggestion(null);
     setAchievements([]);
     setPhase('criteria');
@@ -415,6 +467,19 @@ function App() {
                 <p className="mb-2 text-gray-700 dark:text-gray-300">{s.original}</p>
                 <p className="text-blue-600 dark:text-blue-400 text-xs mb-1">Improved:</p>
                 <p className="text-blue-800 dark:text-blue-200">{s.improved}</p>
+                <div className="mt-3">
+                  <button
+                    onClick={() => handleApplySingleCriteriaSuggestion(i)}
+                    disabled={Boolean(s.applied)}
+                    className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                      s.applied
+                        ? 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {s.applied ? 'Applied' : 'Apply Suggestion'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -433,7 +498,7 @@ function App() {
               onClick={handleApplyCriteriaSuggestion}
               className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
             >
-              Apply Suggestion
+              Apply All Suggestions
             </button>
           )}
           <button

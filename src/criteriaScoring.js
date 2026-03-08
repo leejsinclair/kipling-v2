@@ -37,6 +37,17 @@ const VALUE_VERBS = [
   'optimise', 'minimise', 'maximise'
 ];
 
+const VALUE_VERB_GROUPS = {
+  reduce: ['reduce', 'decrease', 'lower', 'minimize', 'minimise', 'cut'],
+  increase: ['increase', 'raise', 'grow', 'boost'],
+  improve: ['improve', 'enhance', 'optimize', 'optimise', 'refine'],
+  enable: ['enable', 'allow', 'permit', 'facilitate'],
+  save: ['save', 'conserve'],
+  automate: ['automate', 'streamline'],
+  ensure: ['ensure', 'guarantee', 'verify'],
+  prevent: ['prevent', 'avoid', 'block'],
+};
+
 /**
  * Score acceptance criteria
  * @param {Array<string>} criteria - Array of acceptance criteria strings
@@ -124,13 +135,49 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
     suggestions.push('Consider adding more criteria to cover edge cases and variations');
   }
 
+  const hintTargets = generateCriteriaHintTargets({
+    criteria,
+    storyValue,
+    selectedFormat,
+    breakdown,
+  });
+
   return {
     totalScore: Math.min(55, totalScore), // Cap at 55 to match story scoring
     breakdown,
     feedback,
     suggestions,
+    hintTargets,
     criteriaCount: criteria.length
   };
+}
+
+function generateCriteriaHintTargets({ criteria, storyValue, selectedFormat, breakdown }) {
+  const hints = [];
+  const criteriaCount = Array.isArray(criteria) ? criteria.length : 0;
+
+  if ((breakdown.testability ?? 0) < 10) {
+    hints.push('Use observable outcomes in Then steps: status code, UI message, redirect, audit log, or notification.');
+  }
+
+  if ((breakdown.specificity ?? 0) < 8) {
+    hints.push('Use concrete actors, actions, and data values. Avoid vague verbs like "responds" without explicit result details.');
+  }
+
+  if ((breakdown.alignment ?? 0) < 8 && storyValue) {
+    hints.push('Reuse key value words from the story "So that" statement (for example reduce/increase/improve and the target metric/domain term).');
+  }
+
+  if (selectedFormat === 'gherkin') {
+    hints.push('Keep each criterion focused on one primary behavior/outcome. Split overloaded criteria into smaller Given/When/Then criteria.');
+  }
+
+  if (criteriaCount < 3) {
+    hints.push('Add at least one additional criterion to cover validation/error behavior.');
+  }
+
+  // Prioritize a compact set for readability and prompt efficiency.
+  return hints.slice(0, 5);
 }
 
 /**
@@ -438,11 +485,14 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
   
   const hasObservablePattern = OBSERVABLE_PATTERNS.some(pattern => lower.includes(pattern));
   const hasObservable = hasObservablePattern && !isContextOnly;
+  const observablePatternCount = OBSERVABLE_PATTERNS.filter(pattern => lower.includes(pattern)).length;
   
   // Check word count for conciseness FIRST (to prioritize concise feedback for long text)
   if (wordCount > 50) {
     // Very long but has observable
-    if (hasObservable) {
+    if (hasObservable && observablePatternCount >= 3) {
+      testabilityScore += 3; // Detailed long criterion can still be highly testable
+    } else if (hasObservable) {
       testabilityScore += 2; // Some points for having observable
     } else {
       testabilityScore += 1;
@@ -468,6 +518,9 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
   const hasSpecifics = /\b(button|field|message|error|success|page|form|table|list|menu|icon|label|input|filter|status|data|profile|category|date|range|sidebar)\b/i.test(criterion) ||
                        /\b(status code|response|timeout|limit|maximum|minimum|authentication|token|endpoint|api)\b/i.test(criterion) ||
                        /\b\d+\b/.test(criterion); // Has numbers
+  const technicalSpecificCount = (
+    criterion.match(/\b(status|response|audit|timestamp|inventory|database|endpoint|api|token|notification|workflow|transaction|validation|error|table|record)\b/gi) || []
+  ).length;
   
   // Generic action verbs that don't count as specific
   const hasGenericVerbs = /\b(responds?|works?|happens?|processes?|completes?|finishes?)\b/i.test(criterion);
@@ -476,9 +529,14 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
     specificityScore += 0;
     feedback.push('Avoid vague terms');
   } else if (wordCount > 50) {
-    // Very long - penalize for lack of conciseness
-    specificityScore += 1;
-    feedback.push('Too wordy - be more concise');
+    // Very long criteria can still be specific if they include rich technical detail.
+    if (hasSpecifics && technicalSpecificCount >= 4) {
+      specificityScore += 2;
+      feedback.push('Detailed criterion is good; consider splitting for conciseness');
+    } else {
+      specificityScore += 1;
+      feedback.push('Too wordy - be more concise');
+    }
   } else if (hasGenericVerbs && !hasSpecifics) {
     // Generic verbs without specifics (e.g., "the system responds")
     specificityScore += 1;
@@ -510,16 +568,20 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
       'optimise', 'minimise', 'maximise'
     ];
     const foundVerbs = valueVerbs.filter(verb => storyLower.includes(verb));
+    const matchingVerbGroups = Object.values(VALUE_VERB_GROUPS).filter(group =>
+      group.some(v => storyLower.includes(v)),
+    );
     
     // Check if criterion mentions same concepts
     const hasSharedVerbs = foundVerbs.some(verb => criterionLower.includes(verb));
+    const hasSharedVerbSynonym = matchingVerbGroups.some(group => group.some(v => criterionLower.includes(v)));
     
     // Extract key nouns/metrics (simple word matching)
     const storyWords = storyLower.split(/\s+/).filter(w => w.length > 4);
     const criterionWords = criterionLower.split(/\s+/).filter(w => w.length > 4);
     const sharedWords = storyWords.filter(w => criterionWords.includes(w));
     
-    if (hasSharedVerbs || sharedWords.length >= 2) {
+    if (hasSharedVerbs || hasSharedVerbSynonym || sharedWords.length >= 2) {
       alignmentScore = 2; // Strong alignment
     } else if (sharedWords.length === 1) {
       alignmentScore = 1; // Weak alignment
