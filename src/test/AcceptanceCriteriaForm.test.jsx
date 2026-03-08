@@ -32,7 +32,7 @@ describe('AcceptanceCriteriaForm', () => {
 
     await user.type(getCriterionField(1), 'Given I am logged in When I click export Then I see a file');
 
-    await user.click(screen.getByRole('button', { name: /score my criteria/i }));
+    await user.click(screen.getByRole('button', { name: /score draft criteria/i }));
 
     expect(mockSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -51,7 +51,7 @@ describe('AcceptanceCriteriaForm', () => {
 
     await user.type(getCriterionField(1), 'The system must validate user input before submission');
 
-    await user.click(screen.getByRole('button', { name: /score my criteria/i }));
+    await user.click(screen.getByRole('button', { name: /score draft criteria/i }));
 
     expect(mockSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ format: 'bullet' })
