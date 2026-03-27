@@ -1,0 +1,19 @@
+---
+description: Task completion gate — lint, build, unit tests, and Playwright e2e must pass
+alwaysApply: true
+---
+
+# Task completion
+
+Before treating a coding task as **done**, run the full verification suite locally (or the equivalent `verify` script) and fix failures:
+
+1. **`npm run lint`** — lint must pass with no errors.
+2. **`npm run build`** — production build must succeed.
+3. **`npm test -- --run`** — Vitest unit/integration tests must pass.
+4. **`npm run test:e2e`** — Playwright end-to-end tests must pass.
+
+If you only changed documentation or config that does not affect code, still run the relevant checks; when in doubt, run **`npm run verify`** (lint + build + tests + e2e).
+
+**Browsers:** **`npm ci` / `npm install`** triggers **`postinstall`** → **`playwright install chromium`**. If tests still report a missing executable, run **`npx playwright install chromium`** manually.
+
+Do not claim a task is complete unless these commands have succeeded for the current changes.
