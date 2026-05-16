@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreStory, calculateProgression, checkAchievements } from '../scoringEngine';
+import { scoreStory, calculateProgression, checkAchievements, scoreSoThatStatement } from '../scoringEngine';
 
 describe('scoreStory', () => {
   it('should give full completeness score for all fields filled', () => {
@@ -253,5 +253,49 @@ describe('checkAchievements', () => {
   it('should not award achievements for low scores', () => {
     const achievements = checkAchievements(30, 25, []);
     expect(achievements.length).toBe(0);
+  });
+});
+
+describe('scoreSoThatStatement', () => {
+  it('should return null for empty or whitespace input', () => {
+    expect(scoreSoThatStatement('')).toBeNull();
+    expect(scoreSoThatStatement('   ')).toBeNull();
+  });
+
+  it('should apply flowery language penalty and return low score with Needs work grade', () => {
+    const result = scoreSoThatStatement('I can feel safe at home');
+    expect(result.score).toBeLessThan(5);
+    expect(result.grade).toBe('Needs work');
+  });
+
+  it('should award value phrase score for action-verb-led input', () => {
+    const result = scoreSoThatStatement('I can increase team productivity');
+    expect(result.score).toBeGreaterThan(5);
+  });
+
+  it('should award business metric and number bonus', () => {
+    // 'reduce' (value phrase) + 'response time' (metric) + '30%' (number) should score well
+    const result = scoreSoThatStatement('reduce response time by 30%');
+    expect(result.score).toBeGreaterThan(10);
+  });
+
+  it('should return Excellent grade for well-formed input with metric, numbers, and value verbs', () => {
+    // Two value verbs + metric + numbers + sufficient length → score >= 17
+    const result = scoreSoThatStatement('reduce and improve support ticket resolution time by 50%');
+    expect(result.grade).toBe('Excellent');
+  });
+
+  it('should return Needs work grade for very short vague input', () => {
+    const result = scoreSoThatStatement('it works');
+    expect(result.grade).toBe('Needs work');
+  });
+
+  it('should include score, maxScore, grade, color, and feedback in the return value', () => {
+    const result = scoreSoThatStatement('increase team productivity');
+    expect(result).toHaveProperty('score');
+    expect(result).toHaveProperty('maxScore');
+    expect(result).toHaveProperty('grade');
+    expect(result).toHaveProperty('color');
+    expect(result).toHaveProperty('feedback');
   });
 });

@@ -64,7 +64,6 @@ export function scoreStory(story) {
   
   let totalScore = 0;
   const breakdown = {};
-  const feedback = [];
   
   // 1. Completeness check (+10 points)
   const isComplete = asA.trim() && iWant.trim() && soThat.trim();
@@ -72,8 +71,7 @@ export function scoreStory(story) {
   totalScore += breakdown.completeness;
   
   if (!isComplete) {
-    feedback.push("Complete all three fields to earn full points.");
-    return { totalScore, breakdown, feedback, suggestions: [] };
+    return { totalScore, breakdown, feedback: ["Complete all three fields to earn full points."], suggestions: [] };
   }
   
   // 2. Length check (0-10 points, ideal: 18-40 words)
@@ -82,40 +80,19 @@ export function scoreStory(story) {
   breakdown.length = scoreLengthBand(wordCount);
   totalScore += breakdown.length;
   
-  if (wordCount < 10) {
-    feedback.push("Your story is quite short. Add more detail.");
-  } else if (wordCount > 50) {
-    feedback.push("Your story is a bit long. Try to be more concise.");
-  } else if (wordCount >= 18 && wordCount <= 40) {
-    feedback.push("Great length! Clear and concise.");
-  }
-  
   // 3. Clarity check (0-10 points)
   breakdown.clarity = scoreClarity(fullStory);
   totalScore += breakdown.clarity;
-  
-  const fillerCount = countFillerWords(fullStory);
-  if (fillerCount > 0) {
-    feedback.push(`Remove filler words like "${findFillerWords(fullStory).join('", "')}" for better clarity.`);
-  } else if (breakdown.clarity >= 8) {
-    feedback.push("Excellent clarity! Your language is direct and simple.");
-  }
   
   // 4. "So that" quality (0-20 points)
   breakdown.soThatQuality = scoreSoThatQuality(soThat);
   totalScore += breakdown.soThatQuality;
   
-  if (breakdown.soThatQuality >= 15) {
-    feedback.push("Your value statement is strong and specific!");
-  } else if (breakdown.soThatQuality < 10) {
-    feedback.push("Try to make your 'So that' more specific about the value or outcome.");
-  }
-  
   // 5. Creativity bonus (0-5 points)
   breakdown.creativity = scoreCreativity(fullStory);
   totalScore += breakdown.creativity;
   
-  // Generate suggestions
+  const feedback = buildStoryFeedback(breakdown, wordCount, fullStory);
   const suggestions = generateSuggestions(story, breakdown);
   
   return {
@@ -127,16 +104,43 @@ export function scoreStory(story) {
   };
 }
 
+function buildStoryFeedback(breakdown, wordCount, fullStory) {
+  const feedback = [];
+  if (wordCount < 10) {
+    feedback.push("Your story is quite short. Add more detail.");
+  } else if (wordCount > 50) {
+    feedback.push("Your story is a bit long. Try to be more concise.");
+  } else if (wordCount >= 18 && wordCount <= 40) {
+    feedback.push("Great length! Clear and concise.");
+  }
+  
+  const fillerCount = countFillerWords(fullStory);
+  if (fillerCount > 0) {
+    feedback.push(`Remove filler words like "${findFillerWords(fullStory).join('", "')}" for better clarity.`);
+  } else if (breakdown.clarity >= 8) {
+    feedback.push("Excellent clarity! Your language is direct and simple.");
+  }
+  
+  if (breakdown.soThatQuality >= 15) {
+    feedback.push("Your value statement is strong and specific!");
+  } else if (breakdown.soThatQuality < 10) {
+    feedback.push("Try to make your 'So that' more specific about the value or outcome.");
+  }
+  
+  return feedback;
+}
+
 function scoreLengthBand(wordCount) {
+  // Note: order matters — the first matching band wins (early-exit),
+  // so bands are arranged in ascending range order.
   const bands = [
     { matches: (count) => count < 5, score: 0 },
     { matches: (count) => count < 10, score: 3 },
     { matches: (count) => count < 15, score: 6 },
-    { matches: (count) => count >= 18 && count <= 40, score: 10 },
-    { matches: (count) => count >= 15 && count < 18, score: 8 },
-    { matches: (count) => count > 40 && count <= 50, score: 7 },
+    { matches: (count) => count < 18, score: 8 },
+    { matches: (count) => count <= 40, score: 10 },
+    { matches: (count) => count <= 50, score: 7 },
     { matches: (count) => count > 50, score: 4 },
-    { matches: () => true, score: 5 },
   ];
 
   for (const band of bands) {
@@ -158,6 +162,11 @@ function scoreClarity(text) {
   return Math.max(0, score);
 }
 
+/**
+ * Simplified "So that" quality scorer used internally by scoreStory.
+ * Why: Intentionally simpler than scoreSoThatStatement — it contributes one component
+ * of a multi-field story score rather than providing standalone real-time feedback.
+ */
 function scoreSoThatQuality(soThat) {
   const lowerText = soThat.toLowerCase();
   
@@ -199,16 +208,14 @@ function scoreCreativity(text) {
 
 function countFillerWords(text) {
   const lowerText = text.toLowerCase();
-  const words = lowerText.split(/\s+/);
   return FILLER_WORDS.filter(fillerWord => 
-    words.includes(fillerWord)
+    lowerText.includes(fillerWord)
   ).length;
 }
 
 function findFillerWords(text) {
   const lowerText = text.toLowerCase();
-  const words = lowerText.split(/\s+/);
-  return FILLER_WORDS.filter(fillerWord => words.includes(fillerWord));
+  return FILLER_WORDS.filter(fillerWord => lowerText.includes(fillerWord));
 }
 
 function generateSuggestions(story, breakdown) {
@@ -236,9 +243,12 @@ function generateSuggestions(story, breakdown) {
 }
 
 /**
- * Score a single "So that" statement for real-time feedback
+ * Score a single "So that" statement for real-time feedback.
+ * Used for real-time single-field feedback with richer analysis including business metrics
+ * and flowery language detection. This is a separate export from scoreSoThatQuality, which
+ * is used internally by scoreStory for whole-story scoring and is intentionally simpler.
  * @param {string} soThat - The "So that" text
- * @returns {Object} Score details with grade and feedback
+ * @returns {Object|null} Score details with grade and feedback, or null for empty input
  */
 export function scoreSoThatStatement(soThat) {
   const trimmed = soThat.trim();
@@ -254,7 +264,7 @@ export function scoreSoThatStatement(soThat) {
   const issues = [];
   const strengths = [];
   const suggestions = []; // For improvement tips
-  const indicators = analyzeSoThatIndicators(trimmed, lowerText, words);
+  const indicators = analyzeSoThatIndicators(trimmed, lowerText);
 
   score = applyLanguagePenalties(score, issues, indicators);
   score = applyValuePhraseScore(score, issues, strengths, suggestions, indicators);
@@ -276,13 +286,17 @@ export function scoreSoThatStatement(soThat) {
   };
 }
 
-function analyzeSoThatIndicators(trimmed, lowerText, words) {
-  const nonBusinessFound = NON_BUSINESS_TERMS.filter(term =>
-    lowerText.includes(term) || words.includes(term)
-  );
+function analyzeSoThatIndicators(trimmed, lowerText) {
+  // Why: whole-word regex prevents false positives such as 'live' matching 'deliver'
+  // or 'home' matching 'homepage'. Terms are regex-escaped for safety.
+  const escapeRegex = (s) => s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const matchesWholeWord = (term) =>
+    new RegExp('\\b' + escapeRegex(term) + '\\b').test(lowerText);
+
+  const nonBusinessFound = NON_BUSINESS_TERMS.filter(matchesWholeWord);
   const floweryPatternMatches = FLOWERY_PATTERNS.filter(pattern => pattern.test(trimmed));
   const valuePhrasesFound = VALUE_PHRASES.filter(phrase => lowerText.includes(phrase));
-  const businessMetricsFound = BUSINESS_METRICS.filter(metric => lowerText.includes(metric));
+  const businessMetricsFound = BUSINESS_METRICS.filter(matchesWholeWord);
 
   return {
     nonBusinessFound,
@@ -492,7 +506,12 @@ export const STORY_BADGES = [
 ];
 
 /**
- * Check if an achievement is earned
+ * Check if an achievement is earned for the current story.
+ * @param {number} score - The score for the current story
+ * @param {number} wordCount - Word count of the current story
+ * @param {Array<{score: number}>} storyHistory - Prior stories (must NOT include the current story;
+ *   it is merged internally to evaluate streaks)
+ * @returns {Array<Object>} List of earned achievements
  */
 export function checkAchievements(score, wordCount, storyHistory = []) {
   const achievements = [];
@@ -521,8 +540,8 @@ export function checkAchievements(score, wordCount, storyHistory = []) {
     });
   }
   
-  if (storyHistory.length >= 3) {
-    const recentScores = storyHistory.slice(-3).map(s => s.score);
+  if (storyHistory.length >= 2) {
+    const recentScores = [...storyHistory, { score }].slice(-3).map(s => s.score);
     if (recentScores.every(s => s >= 40)) {
       achievements.push({
         id: 'on-fire',
