@@ -128,7 +128,7 @@ git commit -m "chore: upgrade dependencies
 ## Project Context
 
 - **Stack**: React + Vite + TypeScript (strict mode)
-- **Testing**: Vitest (unit) + Playwright (e2e) + Jest (if applicable)
+- **Testing**: Vitest (unit) + Playwright (e2e)
 - **Validation**: `npm run verify` runs lint → build → test → e2e (all required to pass)
 - **Tested Node version**: 24.2.0
 - **Bootstrap**: Run `nvm use` before npm commands (if nvm installed)

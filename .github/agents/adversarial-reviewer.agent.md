@@ -1,6 +1,6 @@
 ---
 name: Adversarial Reviewer
-description: 'Read-only critical reviewer focused on complexity, documentation gaps, and comment quality risks.'
+description: 'Read-only critical reviewer focused on correctness, complexity, documentation gaps, and comment quality risks.'
 model: GPT-5.3-Codex
 tools: ['read', 'search', 'runCommands']
 ---

@@ -1,6 +1,6 @@
 ---
 description: "Use when reviewing code critically for complexity, maintainability, documentation completeness, and comment quality."
-applyTo: "src/**/*.{ts,tsx},e2e/**/*.ts,**/*.{test,spec}.{ts,tsx}"
+applyTo: "src/**/*.{ts,tsx,js,jsx},e2e/**/*.{ts,js},**/*.{test,spec}.{ts,tsx,js,jsx}"
 ---
 
 # Adversarial Review Guidelines
