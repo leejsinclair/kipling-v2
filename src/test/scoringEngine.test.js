@@ -48,6 +48,36 @@ describe('scoreStory', () => {
     expect(result.breakdown.length).toBeLessThan(6);
   });
 
+  it('should score 15-17 word stories in the transitional length band', () => {
+    const story = {
+      asA: 'user',
+      iWant: 'to manage tasks quickly',
+      soThat: 'so that i can reduce errors and improve team delivery speed'
+    };
+
+    const result = scoreStory(story);
+    expect(result.wordCount).toBe(16);
+    expect(result.breakdown.length).toBe(8);
+  });
+
+  it('should score 41-50 word stories in the long-story band', () => {
+    const story = {
+      asA: 'user',
+      iWant: 'to improve',
+      soThat: [
+        'so', 'that', 'our', 'support', 'teams', 'can', 'resolve', 'tickets', 'faster', 'with',
+        'clearer', 'handoffs', 'fewer', 'reopens', 'and', 'stronger', 'first', 'contact', 'resolution',
+        'for', 'enterprise', 'customers', 'across', 'regions', 'while', 'maintaining', 'audit', 'quality',
+        'reducing', 'escalations', 'improving', 'satisfaction', 'and', 'protecting', 'response', 'time',
+        'targets', 'during', 'peak', 'seasonal', 'volumes', 'consistently',
+      ].join(' ')
+    };
+
+    const result = scoreStory(story);
+    expect(result.wordCount).toBe(45);
+    expect(result.breakdown.length).toBe(7);
+  });
+
   it('should detect and penalize filler words', () => {
     const story = {
       asA: 'developer',
