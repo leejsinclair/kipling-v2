@@ -41,6 +41,8 @@ const CATEGORY_TOOLTIPS = {
   }
 };
 
+const COLOR_GREEN = 'text-green-600';
+
 export default function CriteriaScoreBreakdown({ result }) {
   const { totalScore, breakdown } = result;
   
@@ -82,14 +84,14 @@ export default function CriteriaScoreBreakdown({ result }) {
 
   const getScoreColor = (score, max) => {
     const percentage = (score / max) * 100;
-    if (percentage >= 80) return 'text-green-600';
+    if (percentage >= 80) return COLOR_GREEN;
     if (percentage >= 60) return 'text-yellow-600';
     return 'text-orange-600';
   };
 
   const getGrade = () => {
-    if (percentage >= 90) return { grade: 'A+', color: 'text-green-600', emoji: '🌟' };
-    if (percentage >= 80) return { grade: 'A', color: 'text-green-600', emoji: '✨' };
+    if (percentage >= 90) return { grade: 'A+', color: COLOR_GREEN, emoji: '🌟' };
+    if (percentage >= 80) return { grade: 'A', color: COLOR_GREEN, emoji: '✨' };
     if (percentage >= 70) return { grade: 'B', color: 'text-blue-600', emoji: '👍' };
     if (percentage >= 60) return { grade: 'C', color: 'text-yellow-600', emoji: '👌' };
     if (percentage >= 50) return { grade: 'D', color: 'text-orange-600', emoji: '📝' };

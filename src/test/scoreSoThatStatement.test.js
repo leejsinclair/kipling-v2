@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { scoreSoThatStatement } from '../scoringEngine';
 
+const GRADE_NEEDS_WORK = 'Needs work';
+
 describe('scoreSoThatStatement', () => {
   // Excellent cases (17-20 points) - Should have business metrics, value verbs, numbers, good length
   describe('Excellent statements (17-20 points)', () => {
@@ -105,7 +107,7 @@ describe('scoreSoThatStatement', () => {
     it('should penalize flowery/emotional language heavily', () => {
       const result = scoreSoThatStatement('we can increase happiness by 20% and live happily in a strong house protected from the dangerous elements');
       expect(result.score).toBeLessThan(9);
-      expect(result.grade).toBe('Needs work');
+      expect(result.grade).toBe(GRADE_NEEDS_WORK);
       expect(result.color).toBe('orange');
       expect(result.feedback).toContain('emotional');
     });
@@ -119,7 +121,7 @@ describe('scoreSoThatStatement', () => {
     it('should score low for vague phrases without specifics', () => {
       const result = scoreSoThatStatement('it is better and easier');
       expect(result.score).toBeLessThan(9);
-      expect(result.grade).toBe('Needs work');
+      expect(result.grade).toBe(GRADE_NEEDS_WORK);
     });
 
     it('should score low when missing value verbs', () => {
@@ -130,7 +132,7 @@ describe('scoreSoThatStatement', () => {
     it('should score low for extremely brief statements', () => {
       const result = scoreSoThatStatement('it works');
       expect(result.score).toBeLessThan(9);
-      expect(result.grade).toBe('Needs work');
+      expect(result.grade).toBe(GRADE_NEEDS_WORK);
     });
   });
 

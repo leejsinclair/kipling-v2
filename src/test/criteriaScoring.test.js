@@ -6,6 +6,12 @@ import {
   scoreSingleCriterion
 } from '../criteriaScoring';
 
+const BULLET_CRITERIA = [
+  'The system must validate user input',
+  'The user can export data as CSV',
+  'The page displays error messages for invalid data'
+];
+
 describe('scoreCriteria', () => {
   it('should return 0 score for empty criteria', () => {
     const result = scoreCriteria([]);
@@ -26,37 +32,19 @@ describe('scoreCriteria', () => {
   });
 
   it('should score bullet-point format criteria', () => {
-    const criteria = [
-      'The system must validate user input',
-      'The user can export data as CSV',
-      'The page displays error messages for invalid data'
-    ];
-    
-    const result = scoreCriteria(criteria);
+    const result = scoreCriteria(BULLET_CRITERIA);
     expect(result.breakdown.format).toBeGreaterThanOrEqual(5);
   });
 
   it('should score bullet format against bullet rules when selected', () => {
-    const criteria = [
-      'The system must validate user input',
-      'The user can export data as CSV',
-      'The page displays error messages for invalid data'
-    ];
-
-    const result = scoreCriteria(criteria, '', 'bullet');
+    const result = scoreCriteria(BULLET_CRITERIA, '', 'bullet');
     expect(result.breakdown.format).toBeGreaterThanOrEqual(8);
     expect(result.feedback).not.toContain('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
   });
 
   it('should favor gherkin formatting when gherkin is selected', () => {
-    const criteria = [
-      'The system must validate user input',
-      'The user can export data as CSV',
-      'The page displays error messages for invalid data'
-    ];
-
-    const gherkinSelected = scoreCriteria(criteria, '', 'gherkin');
-    const bulletSelected = scoreCriteria(criteria, '', 'bullet');
+    const gherkinSelected = scoreCriteria(BULLET_CRITERIA, '', 'gherkin');
+    const bulletSelected = scoreCriteria(BULLET_CRITERIA, '', 'bullet');
 
     expect(bulletSelected.breakdown.format).toBeGreaterThanOrEqual(gherkinSelected.breakdown.format);
   });
