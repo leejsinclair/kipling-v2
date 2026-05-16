@@ -85,6 +85,10 @@ const FORMAT_HINT_RULES = [
   }
 ];
 
+/**
+ * Creates the default empty single-criterion rating payload.
+ * @returns {{score: number, grade: string, color: string, feedback: string, maxScore: number, breakdown: object}}
+ */
 function createEmptySingleCriterionRating() {
   return {
     score: 0,
@@ -96,6 +100,11 @@ function createEmptySingleCriterionRating() {
   };
 }
 
+/**
+ * Adds feedback only once so refactored scorers can compose messages safely.
+ * @param {string[]} target
+ * @param {string} message
+ */
 function addUniqueMessage(target, message) {
   if (message && !target.includes(message)) {
     target.push(message);
@@ -384,6 +393,13 @@ export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue =
   };
 }
 
+/**
+ * Builds score-level feedback for a criteria set.
+ * @param {Record<string, number>} breakdown
+ * @param {'gherkin' | 'bullet'} selectedFormat
+ * @param {string} storyValue
+ * @returns {string[]}
+ */
 function buildCriteriaFeedback(breakdown, selectedFormat, storyValue) {
   const feedback = [];
 
@@ -422,6 +438,13 @@ function buildCriteriaFeedback(breakdown, selectedFormat, storyValue) {
   return feedback;
 }
 
+/**
+ * Builds actionable improvement suggestions for a criteria set.
+ * @param {Record<string, number>} breakdown
+ * @param {'gherkin' | 'bullet'} selectedFormat
+ * @param {number} criteriaCount
+ * @returns {string[]}
+ */
 function buildCriteriaSuggestions(breakdown, selectedFormat, criteriaCount) {
   const suggestions = [];
 
@@ -448,6 +471,11 @@ function buildCriteriaSuggestions(breakdown, selectedFormat, criteriaCount) {
   return suggestions;
 }
 
+/**
+ * Calculates bullet-format completeness coverage points.
+ * @param {string[]} criteria
+ * @returns {number}
+ */
 function getBulletCompletenessCoverage(criteria) {
   let hasMust = false;
   let hasCan = false;
@@ -463,6 +491,11 @@ function getBulletCompletenessCoverage(criteria) {
   return (hasMust ? 3 : 0) + (hasCan ? 3 : 0) + (hasDisplays ? 4 : 0);
 }
 
+/**
+ * Calculates Gherkin-format completeness coverage points.
+ * @param {string[]} criteria
+ * @returns {number}
+ */
 function getGherkinCompletenessCoverage(criteria) {
   let hasContext = false;
   let hasAction = false;
@@ -478,12 +511,23 @@ function getGherkinCompletenessCoverage(criteria) {
   return (hasContext ? 3 : 0) + (hasAction ? 3 : 0) + (hasOutcome ? 4 : 0);
 }
 
+/**
+ * Returns the count-based completeness bonus for multiple criteria.
+ * @param {number} criteriaCount
+ * @returns {number}
+ */
 function getCriteriaCountCompletenessScore(criteriaCount) {
   if (criteriaCount >= 5) return 5;
   if (criteriaCount >= 3) return 3;
   return 0;
 }
 
+/**
+ * Scores the format dimension for a single criterion.
+ * @param {string} lower
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {{score: number, feedback: string[]}}
+ */
 function scoreSingleCriterionFormat(lower, format) {
   if (format === 'gherkin') {
     return scoreGherkinCriterionFormat(lower);
@@ -492,6 +536,11 @@ function scoreSingleCriterionFormat(lower, format) {
   return scoreBulletCriterionFormat(lower);
 }
 
+/**
+ * Scores Gherkin structure for a single criterion.
+ * @param {string} lower
+ * @returns {{score: number, feedback: string[]}}
+ */
 function scoreGherkinCriterionFormat(lower) {
   const hasGiven = matchesAnyPattern(lower, ['given', '\ngiven '], { startsWithFirst: true });
   const hasWhen = matchesAnyPattern(lower, [' when ', 'when ', '\nwhen '], { startsWithFirst: false });
@@ -511,6 +560,11 @@ function scoreGherkinCriterionFormat(lower) {
   return { score: 0, feedback: ['Use Gherkin format: Given/When/Then'] };
 }
 
+/**
+ * Scores bullet-style structure for a single criterion.
+ * @param {string} lower
+ * @returns {{score: number, feedback: string[]}}
+ */
 function scoreBulletCriterionFormat(lower) {
   if (lower.startsWith('the system') || lower.startsWith('the user')) {
     return { score: 4, feedback: [] };
@@ -527,6 +581,12 @@ function scoreBulletCriterionFormat(lower) {
   };
 }
 
+/**
+ * Scores observable outcomes for a single criterion.
+ * @param {string} lower
+ * @param {number} wordCount
+ * @returns {{score: number, feedback: string[]}}
+ */
 function scoreSingleCriterionTestability(lower, wordCount) {
   const contextOnlyRegex = /\b(on the page|to the page|from the (page|click))\b/i;
   const hasObservablePattern = OBSERVABLE_PATTERNS.some((pattern) => lower.includes(pattern));
@@ -547,6 +607,13 @@ function scoreSingleCriterionTestability(lower, wordCount) {
   };
 }
 
+/**
+ * Scores specificity for a single criterion.
+ * @param {string} criterion
+ * @param {string} lower
+ * @param {number} wordCount
+ * @returns {{score: number, feedback: string[]}}
+ */
 function scoreSingleCriterionSpecificity(criterion, lower, wordCount) {
   const hasVague = VAGUE_TERMS.some((term) => lower.includes(term));
   const hasSpecifics = hasCriterionSpecifics(criterion);
@@ -570,6 +637,12 @@ function scoreSingleCriterionSpecificity(criterion, lower, wordCount) {
   return { score: getSpecificityScore(hasSpecifics, wordCount), feedback: [] };
 }
 
+/**
+ * Scores how well a criterion reinforces the story value statement.
+ * @param {string} criterion
+ * @param {string} storyValue
+ * @returns {number}
+ */
 function scoreSingleCriterionAlignment(criterion, storyValue) {
   if (!storyValue || !storyValue.trim()) {
     return 1;
@@ -592,6 +665,12 @@ function scoreSingleCriterionAlignment(criterion, storyValue) {
   return 0;
 }
 
+/**
+ * Converts a single-criterion score into the displayed grade metadata.
+ * @param {number} totalScore
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {{grade: string, color: string}}
+ */
 function getSingleCriterionGrade(totalScore, format) {
   const excellentThreshold = format === 'gherkin' ? 12 : 11;
   const goodThreshold = format === 'gherkin' ? 9 : 8;
@@ -603,6 +682,11 @@ function getSingleCriterionGrade(totalScore, format) {
   return { grade: 'Needs work', color: 'orange' };
 }
 
+/**
+ * Builds the per-dimension breakdown payload for a single criterion.
+ * @param {{format: 'gherkin' | 'bullet', formatScore: number, testabilityScore: number, specificityScore: number, alignmentScore: number}} input
+ * @returns {object}
+ */
 function buildSingleCriterionBreakdown({
   format,
   formatScore,
@@ -634,6 +718,13 @@ function buildSingleCriterionBreakdown({
   };
 }
 
+/**
+ * Checks whether text starts with or contains any of the provided patterns.
+ * @param {string} text
+ * @param {string[]} patterns
+ * @param {{startsWithFirst: boolean}} options
+ * @returns {boolean}
+ */
 function matchesAnyPattern(text, patterns, { startsWithFirst }) {
   const [startPattern, ...includePatterns] = patterns;
   return (
@@ -642,24 +733,46 @@ function matchesAnyPattern(text, patterns, { startsWithFirst }) {
   );
 }
 
+/**
+ * Returns the testability score band for long criteria.
+ * @param {boolean} hasObservable
+ * @param {number} observablePatternCount
+ * @returns {number}
+ */
 function getLongCriterionTestabilityScore(hasObservable, observablePatternCount) {
   if (hasObservable && observablePatternCount >= 3) return 3;
   if (hasObservable) return 2;
   return 1;
 }
 
+/**
+ * Returns the testability score band for observable criteria by length.
+ * @param {number} wordCount
+ * @returns {number}
+ */
 function getObservableTestabilityScore(wordCount) {
   if (wordCount >= 8) return 3;
   if (wordCount >= 5) return 2;
   return 1;
 }
 
+/**
+ * Returns the specificity score band for the supplied criterion details.
+ * @param {boolean} hasSpecifics
+ * @param {number} wordCount
+ * @returns {number}
+ */
 function getSpecificityScore(hasSpecifics, wordCount) {
   if (hasSpecifics && wordCount >= 12) return 3;
   if (hasSpecifics && wordCount >= 8) return 2;
   return 1;
 }
 
+/**
+ * Checks whether a criterion contains concrete UI, technical, or numeric details.
+ * @param {string} criterion
+ * @returns {boolean}
+ */
 function hasCriterionSpecifics(criterion) {
   return [
     /\b(button|field|message|error|success|page|form|table|list|menu|icon|label|input|filter|status|data|profile|category|date|range|sidebar)\b/i,
@@ -668,6 +781,12 @@ function hasCriterionSpecifics(criterion) {
   ].some((pattern) => pattern.test(criterion));
 }
 
+/**
+ * Returns the specificity result for long criteria.
+ * @param {boolean} hasSpecifics
+ * @param {number} technicalSpecificCount
+ * @returns {{score: number, feedback: string[]}}
+ */
 function getLongCriterionSpecificityResult(hasSpecifics, technicalSpecificCount) {
   if (hasSpecifics && technicalSpecificCount >= 4) {
     return { score: 2, feedback: ['Detailed criterion is good; consider splitting for conciseness'] };

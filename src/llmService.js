@@ -568,12 +568,23 @@ function buildCriteriaFallback(criteria, format) {
   };
 }
 
+/**
+ * Validates that an API key value is present before making a request.
+ * @param {string} apiKey
+ * @throws {{type: string, message: string}}
+ */
 function ensureApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
     throw { type: 'invalid_key', message: 'No API key provided.' };
   }
 }
 
+/**
+ * Calls the OpenAI API and returns parsed JSON or throws the API error message.
+ * @param {string} url
+ * @param {{apiKey: string, method?: string, body?: object}} options
+ * @returns {Promise<any>}
+ */
 async function fetchOpenAIJson(url, { apiKey, method = 'POST', body }) {
   const response = await fetch(url, {
     method,
@@ -593,25 +604,51 @@ async function fetchOpenAIJson(url, { apiKey, method = 'POST', body }) {
   return response.json().catch(() => ({}));
 }
 
+/**
+ * Returns the format scoring ceiling for criteria prompts.
+ * @param {string} format
+ * @returns {number}
+ */
 function getCriteriaFormatMaxScore(format) {
   return String(format || '').toLowerCase() === 'gherkin' ? 5 : 4;
 }
 
+/**
+ * Raises a current score target by one step without exceeding the maximum.
+ * @param {number | undefined} currentValue
+ * @param {number} maxValue
+ * @returns {number}
+ */
 function getRaisedTarget(currentValue, maxValue) {
   const score = currentValue ?? 0;
   return Math.min(maxValue, score < maxValue ? score + 1 : maxValue);
 }
 
+/**
+ * Validates the parsed story suggestion payload shape.
+ * @param {any} suggestion
+ * @returns {boolean}
+ */
 function isValidStorySuggestion(suggestion) {
   if (!suggestion || typeof suggestion !== 'object') return false;
   const { asA, iWant, soThat } = suggestion;
   return isNonEmptyString(asA) && isNonEmptyString(iWant) && isNonEmptyString(soThat);
 }
 
+/**
+ * Validates one rationale entry in an AI story payload.
+ * @param {any} item
+ * @returns {boolean}
+ */
 function isValidRationaleItem(item) {
   return item && typeof item === 'object' && isNonEmptyString(item.criterion) && isNonEmptyString(item.reason);
 }
 
+/**
+ * Validates that a criteria suggestion includes non-empty original and improved text.
+ * @param {any} suggestion
+ * @returns {boolean}
+ */
 function isValidSuggestionShape(suggestion) {
   return (
     suggestion &&
@@ -621,6 +658,12 @@ function isValidSuggestionShape(suggestion) {
   );
 }
 
+/**
+ * Validates the stricter Gherkin suggestion requirements used to reject degraded AI output.
+ * @param {{original: string, improved: string}} suggestion
+ * @param {string[]} sourceCriteriaNormalized
+ * @returns {boolean}
+ */
 function isValidGherkinSuggestion(suggestion, sourceCriteriaNormalized) {
   const original = suggestion.original.trim();
   const improved = suggestion.improved.trim();
@@ -636,6 +679,12 @@ function isValidGherkinSuggestion(suggestion, sourceCriteriaNormalized) {
   return original.split(/\s+/).length >= 8 && improved.split(/\s+/).length >= 12;
 }
 
+/**
+ * Builds fallback issue messages when story improvement output must be synthesized locally.
+ * @param {string} asA
+ * @param {string} soThat
+ * @returns {string[]}
+ */
 function buildFallbackIssues(asA, soThat) {
   const issues = [];
 
@@ -654,6 +703,11 @@ function buildFallbackIssues(asA, soThat) {
   return issues;
 }
 
+/**
+ * Builds fallback rationale entries for synthesized story improvement output.
+ * @param {object} breakdown
+ * @returns {{criterion: string, reason: string}[]}
+ */
 function buildFallbackRationale(breakdown) {
   const rationale = [
     {

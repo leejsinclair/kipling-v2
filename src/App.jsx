@@ -15,16 +15,29 @@ import { scoreStory, checkAchievements } from './scoringEngine';
 import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
 import { validateOpenAIKey, improveStoryWithAI, improveCriteriaWithAI } from './llmService';
 
+/**
+ * Scrolls to the bottom after state updates so newly revealed results stay in view.
+ */
 function scrollToPageBottom() {
   setTimeout(() => {
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   }, 100);
 }
 
+/**
+ * Builds the canonical story sentence shown to the criteria step.
+ * @param {object} story
+ * @returns {string}
+ */
 function buildStoryText(story) {
   return `As a ${story.asA}, I want ${story.iWant} so that ${story.soThat}.`;
 }
 
+/**
+ * Extracts story form fields with safe string fallbacks.
+ * @param {object} story
+ * @returns {{asA: string, iWant: string, soThat: string}}
+ */
 function getStoryFields(story) {
   return {
     asA: story?.asA || '',
@@ -33,6 +46,11 @@ function getStoryFields(story) {
   };
 }
 
+/**
+ * Clones AI criteria suggestions and marks each one as not yet applied.
+ * @param {object} suggestion
+ * @returns {object}
+ */
 function markCriteriaSuggestionsPending(suggestion) {
   return {
     ...suggestion,
@@ -40,6 +58,13 @@ function markCriteriaSuggestionsPending(suggestion) {
   };
 }
 
+/**
+ * Finds the best criteria index to replace for a single AI suggestion.
+ * @param {string[]} criteria
+ * @param {{original?: string}} suggestion
+ * @param {number} suggestionIndex
+ * @returns {number}
+ */
 function findCriteriaSuggestionTargetIndex(criteria, suggestion, suggestionIndex) {
   const originalNormalized = (suggestion.original || '').trim();
   const matchedIndex = criteria.findIndex((criterion) => (criterion || '').trim() === originalNormalized);
@@ -50,6 +75,13 @@ function findCriteriaSuggestionTargetIndex(criteria, suggestion, suggestionIndex
   return suggestionIndex < criteria.length ? suggestionIndex : -1;
 }
 
+/**
+ * Builds the next criteria draft state after applying one AI suggestion.
+ * @param {{criteria: string[], format?: string}} criteriaDraftInput
+ * @param {{improved: string, original?: string}} suggestion
+ * @param {number} suggestionIndex
+ * @returns {{criteria: string[], format: string} | null}
+ */
 function buildAppliedCriteriaData(criteriaDraftInput, suggestion, suggestionIndex) {
   const currentCriteria = [...criteriaDraftInput.criteria];
   const targetIndex = findCriteriaSuggestionTargetIndex(currentCriteria, suggestion, suggestionIndex);
@@ -65,10 +97,23 @@ function buildAppliedCriteriaData(criteriaDraftInput, suggestion, suggestionInde
   };
 }
 
+/**
+ * Determines whether history loading should restore story state from a saved entry.
+ * @param {{confirmedStory: object|null, storyFinalResult: object|null, storyDraftInput: object|null, storyDraftResult: object|null}} state
+ * @returns {boolean}
+ */
 function shouldHydrateStoryFromHistory({ confirmedStory, storyFinalResult, storyDraftInput, storyDraftResult }) {
   return !(confirmedStory || storyFinalResult || storyDraftInput || storyDraftResult);
 }
 
+/**
+ * Builds the request payload for criteria improvement calls.
+ * @param {object} criteriaDraftInput
+ * @param {object} criteriaDraftResult
+ * @param {object} confirmedStory
+ * @param {string} aiApiKey
+ * @returns {object}
+ */
 function buildImproveCriteriaRequest(criteriaDraftInput, criteriaDraftResult, confirmedStory, aiApiKey) {
   return {
     criteria: criteriaDraftInput?.criteria,

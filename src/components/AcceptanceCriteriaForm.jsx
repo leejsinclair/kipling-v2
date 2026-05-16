@@ -343,6 +343,12 @@ function getCriterionTooltipContent(rating, format) {
   return CRITERION_TOOLTIP_CONTENT[tier][formatKey];
 }
 
+/**
+ * Returns the next format-specific hint for a criterion, if any.
+ * @param {string} lower
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {string | null}
+ */
 function getFormatHintForCriterion(lower, format) {
   if (format === 'gherkin') {
     const startsWithStep = ['given', 'when', 'then', 'and'].some((prefix) => lower.startsWith(prefix));
@@ -363,6 +369,11 @@ function getFormatHintForCriterion(lower, format) {
     : 'Start with "The system must..." or "The user can..." for a clear, testable statement.';
 }
 
+/**
+ * Maps a criterion score to its tooltip tier.
+ * @param {number} score
+ * @returns {'excellent' | 'good' | 'fair' | 'needsWork'}
+ */
 function getCriterionTooltipTier(score) {
   if (score >= 9) return 'excellent';
   if (score >= 7) return 'good';

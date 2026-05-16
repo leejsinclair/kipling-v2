@@ -95,6 +95,11 @@ function getSoThatHint(value) {
   return '';
 }
 
+/**
+ * Maps a So that score to the tooltip content tier.
+ * @param {number} score
+ * @returns {'excellent' | 'good' | 'fair' | 'needsWork'}
+ */
 function getSoThatTooltipTier(score) {
   if (score >= 17) return 'excellent';
   if (score >= 13) return 'good';
@@ -102,6 +107,11 @@ function getSoThatTooltipTier(score) {
   return 'needsWork';
 }
 
+/**
+ * Returns tooltip examples for the current So that rating.
+ * @param {{score: number} | null} rating
+ * @returns {{good: string[], avoid: string[]} | null}
+ */
 function getSoThatTooltipContent(rating) {
   if (!rating) return null;
   return SO_THAT_TOOLTIP_CONTENT[getSoThatTooltipTier(rating.score)];
