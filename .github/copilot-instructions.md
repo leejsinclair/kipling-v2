@@ -1,62 +1,39 @@
-# Copilot Instructions: Dependency Upgrades
+# Copilot Instructions
 
-These instructions apply when updating npm dependencies in this repository.
+These instructions guide GitHub Copilot behavior in this repository.
 
-## Goals
+## Scope
 
-- Keep updates safe and incremental.
-- Prefer non-breaking upgrades first.
-- Preserve passing lint/tests after every upgrade step.
-- Leave a clear summary of what changed and why.
+Applies to all coding tasks in this workspace.
 
-## Upgrade Workflow (Required)
+## Before Coding
 
-1. **Start with discovery**
-   - Run `npm outdated`.
-   - Group updates into:
-     - safe (`Current -> Wanted`)
-     - major (`Wanted -> Latest`)
+- Read [AGENTS.md](../AGENTS.md).
+- Load applicable files in [.github/instructions](instructions).
+- For dependency updates, also apply [.github/instructions/dependency-upgrades.instructions.md](instructions/dependency-upgrades.instructions.md).
+- For code review tasks, apply [.github/instructions/adversarial-review.instructions.md](instructions/adversarial-review.instructions.md) and use [.github/agents/adversarial-reviewer.agent.md](agents/adversarial-reviewer.agent.md).
+- If reusing awesome-copilot content, follow the whitelist in [AGENTS.md](../AGENTS.md) only.
 
-2. **Apply safe updates first**
-   - Run `npm update`.
-   - Re-check with `npm outdated`.
+## Implementation Expectations
 
-3. **Validate immediately**
-   - Run `npm run lint`.
-   - Run `npm run test -- --run`.
+- Keep edits minimal and localized.
+- Match existing naming, style, and architecture.
+- Avoid changing unrelated files.
+- Add or update tests when behavior changes.
 
-4. **Security check**
-   - Run `npm audit --json`.
-   - If vulnerabilities remain, identify exact dependency chain and fix availability.
+## Validation Expectations
 
-5. **Major upgrades (only when needed or requested)**
-   - Upgrade one tool-family at a time (example: ESLint stack together).
-   - Prefer explicit installs (example: `npm install -D eslint@^10 @eslint/js@^10`).
-   - Re-run lint/tests/audit after each major step.
+- Preferred full check for completion: `npm run verify`
+- Minimum checks by change type:
+  - Style/lint-sensitive edits: `npm run lint`
+  - Logic changes: `npm test -- --run`
+  - Build/system changes: `npm run build`
+  - UI flow changes: `npm run test:e2e`
 
-## Guardrails
+## Done Criteria
 
-- Do **not** use `npm audit fix --force` by default.
-- Do **not** use `--force` for installs unless:
-  - vulnerability cannot be fixed otherwise, and
-  - user has approved major upgrade path.
-- If using `--force`, explain the peer-dependency conflict and verify with lint + tests.
-- Do not change unrelated code while fixing dependency updates.
+A task is complete only when relevant checks and acceptance criteria pass.
 
-## Known Project Notes
+## Safety Guardrails
 
-- This repo uses Vite + React + ESLint flat config.
-- Tested Node.js version: `24.2.0`.
-- If `nvm` is installed, run `nvm use` in bash terminals before running npm scripts.
-- Lint must pass with `npm run lint` after upgrades.
-- Test baseline is Vitest (`npm run test -- --run`).
-- If ESLint major upgrades introduce new rule failures, prefer minimal code changes over rule disablement.
-
-## Handoff Format
-
-When done, report:
-
-- updated packages (safe vs major)
-- files changed (`package.json`, `package-lock.json`, and any code touched)
-- lint/test/audit status
-- any temporary compatibility caveats (for example, peer range lag)
+This repository uses **Tool Guardian** to intercept and block dangerous operations before execution. See [AGENTS.md](../AGENTS.md) for the blocked patterns and override instructions.
