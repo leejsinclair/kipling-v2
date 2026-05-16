@@ -17,4 +17,18 @@ if ! command -v npm >/dev/null 2>&1; then
 	exit 127
 fi
 
+check_non_ts_stack_files() {
+	staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+	blocked=$(printf "%s\n" "$staged_files" | grep -E '(^|/)(Gemfile|go\.mod|go\.sum|composer\.json|composer\.lock)$|\.(rb|go|php)$' || true)
+
+	if [ -n "$blocked" ] && [ "${ALLOW_NON_TS_STACK:-0}" != "1" ]; then
+		echo "✖ Guardrail: detected non-TypeScript stack files in staged changes:"
+		printf "%s\n" "$blocked"
+		echo "  If this is intentional, rerun with ALLOW_NON_TS_STACK=1"
+		exit 1
+	fi
+}
+
+check_non_ts_stack_files
+
 npm run lint
