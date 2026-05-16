@@ -48,6 +48,30 @@ describe('scoreStory', () => {
     expect(result.breakdown.length).toBeLessThan(6);
   });
 
+  it('should score 15-17 word stories in the transitional length band', () => {
+    const story = {
+      asA: 'user',
+      iWant: 'to manage tasks quickly',
+      soThat: 'so that i can reduce errors and improve team delivery speed'
+    };
+
+    const result = scoreStory(story);
+    expect(result.wordCount).toBe(16);
+    expect(result.breakdown.length).toBe(8);
+  });
+
+  it('should score 41-50 word stories in the long-story band', () => {
+    const story = {
+      asA: 'user',
+      iWant: 'to improve',
+      soThat: Array(42).fill('value').join(' ')
+    };
+
+    const result = scoreStory(story);
+    expect(result.wordCount).toBe(45);
+    expect(result.breakdown.length).toBe(7);
+  });
+
   it('should detect and penalize filler words', () => {
     const story = {
       asA: 'developer',
