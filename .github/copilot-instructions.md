@@ -33,6 +33,8 @@ Applies to all coding tasks in this workspace.
 ## Done Criteria
 
 A task is complete only when relevant checks and acceptance criteria pass.
+Before finalizing, run the adversarial reviewer agent (`.github/agents/adversarial-reviewer.agent.md`) with `.github/instructions/adversarial-review.instructions.md` for changed code/comments/docs by invoking the `task` tool with `agent_type: "adversarial-reviewer"` and a prompt covering the changed files.
+Documented findings should be captured in the PR description, linked issues, or inline code comments with rationale.
 
 ## Safety Guardrails
 
