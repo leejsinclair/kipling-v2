@@ -5,7 +5,25 @@ on:
     branches: ['main']
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
+  reviewer-evidence:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      REVIEWER_CHECKLIST_TEXT: Adversarial reviewer run completed; findings resolved or documented
+    steps:
+      - name: Require adversarial reviewer declaration in PR checklist
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! printf '%s' "$PR_BODY" | grep -Eiq -- "- \[[xX]\] ${REVIEWER_CHECKLIST_TEXT}"; then
+            echo "::error title=Missing reviewer evidence::Check the PR template item: '${REVIEWER_CHECKLIST_TEXT}'."
+            exit 1
+          fi
+
   verify:
     runs-on: ubuntu-latest
     steps:

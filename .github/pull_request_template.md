@@ -27,4 +27,5 @@ Add screenshots or GIFs if the change affects UI or behaviour.
 - [ ] Tests added or updated (if applicable)
 - [ ] Documentation updated (if needed)
 - [ ] No linting or formatting issues
+- [ ] Adversarial reviewer run completed; findings resolved or documented
 - [ ] PR title is clear and descriptive
