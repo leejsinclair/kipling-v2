@@ -128,14 +128,22 @@ export function scoreStory(story) {
 }
 
 function scoreLengthBand(wordCount) {
-  if (wordCount < 5) return 0;
-  if (wordCount < 10) return 3;
-  if (wordCount < 15) return 6;
-  if (wordCount >= 18 && wordCount <= 40) return 10;
-  if (wordCount >= 15 && wordCount < 18) return 8;
-  if (wordCount > 40 && wordCount <= 50) return 7;
-  if (wordCount > 50) return 4;
-  return 5;
+  const bands = [
+    { matches: (count) => count < 5, score: 0 },
+    { matches: (count) => count < 10, score: 3 },
+    { matches: (count) => count < 15, score: 6 },
+    { matches: (count) => count >= 18 && count <= 40, score: 10 },
+    { matches: (count) => count >= 15 && count < 18, score: 8 },
+    { matches: (count) => count > 40 && count <= 50, score: 7 },
+    { matches: (count) => count > 50, score: 4 },
+    { matches: () => true, score: 5 },
+  ];
+
+  for (const band of bands) {
+    if (band.matches(wordCount)) {
+      return band.score;
+    }
+  }
 }
 
 function scoreClarity(text) {
@@ -246,149 +254,18 @@ export function scoreSoThatStatement(soThat) {
   const issues = [];
   const strengths = [];
   const suggestions = []; // For improvement tips
+  const indicators = analyzeSoThatIndicators(trimmed, lowerText, words);
 
-  // Check for non-business/flowery language first (critical issue)
-  const nonBusinessFound = NON_BUSINESS_TERMS.filter(term => 
-    lowerText.includes(term) || words.includes(term)
-  );
-  const floweryPatternMatches = FLOWERY_PATTERNS.filter(pattern => pattern.test(trimmed));
-  const hasFloweryLanguage = nonBusinessFound.length > 0 || floweryPatternMatches.length > 0;
-
-  // Check for vague phrases
-  const hasVaguePhrases = VAGUE_PHRASES.some(phrase => lowerText.includes(phrase));
-
-  // Check for value-oriented action words
-  const valuePhrasesFound = VALUE_PHRASES.filter(phrase => lowerText.includes(phrase));
-
-  // Check for business metrics
-  const businessMetricsFound = BUSINESS_METRICS.filter(metric => lowerText.includes(metric));
-  const hasBusinessMetrics = businessMetricsFound.length > 0;
-
-  // Check for numbers (could be meaningful or not)
-  const hasNumbers = /\d+/.test(trimmed);
-
-  // 1. Critical penalties for non-business language (-8 points)
-  if (hasFloweryLanguage) {
-    score = Math.max(0, score - 8);
-    if (nonBusinessFound.length > 0) {
-      issues.push(`Avoid non-business terms like "${nonBusinessFound.slice(0, 2).join('", "')}"`);
-    }
-    if (floweryPatternMatches.length > 0) {
-      issues.push('Remove emotional/flowery phrases - focus on concrete business outcomes');
-    }
-  }
-
-  // 2. Vague phrases penalty (-5 points)
-  if (hasVaguePhrases) {
-    score = Math.max(0, score - 5);
-    issues.push('Replace vague phrases with specific, measurable outcomes');
-  }
-
-  // 3. Value phrases (0-9 points)
-  let valueScore;
-  if (valuePhrasesFound.length > 0) {
-    valueScore = Math.min(9, valuePhrasesFound.length * 3);
-    score += valueScore;
-    if (!hasFloweryLanguage && !hasVaguePhrases) {
-      strengths.push('Good use of action verbs');
-    }
-  } else {
-    issues.push('Start with an action verb like "reduce", "increase", or "enable"');
-    suggestions.push('Add a value verb at the start');
-  }
-
-  // 4. Business metrics and numbers (0-11 points)
-  // For Excellent: need BOTH metrics AND numbers
-  if (hasBusinessMetrics && hasNumbers) {
-    score += 8; // Both metrics and numbers = excellent
-    if (!hasFloweryLanguage) {
-      strengths.push('Tied to real business metrics');
-    }
-  } else if (hasBusinessMetrics) {
-    score += 4; // Has metrics but no numbers
-    if (!hasFloweryLanguage) {
-      suggestions.push('Add specific numbers or percentages');
-    }
-  } else if (hasNumbers && !hasFloweryLanguage) {
-    // Has numbers but no business context
-    score += 2;
-    issues.push('Link numbers to business metrics (time saved, cost reduced, conversion rate, etc.)');
-    suggestions.push('Connect the percentage to a specific metric like "response time" or "conversion rate"');
-  } else if (!hasNumbers && !hasBusinessMetrics) {
-    issues.push('Add measurable outcomes (e.g., "reduce processing time by 50%")');
-    suggestions.push('Add a specific metric with numbers');
-  }
-
-  // 5. Length and detail (0-5 points)
-  if (wordCount >= 10 && !hasFloweryLanguage) {
-    score += 5;
-  } else if (wordCount >= 7) {
-    score += 3;
-  } else if (wordCount >= 4) {
-    score += 1;
-    if (issues.length === 0) {
-      issues.push('Add more detail about the business value or outcome');
-    }
-  } else {
-    issues.push('Too brief - describe the specific value or benefit');
-    suggestions.push('Expand with more detail about the business impact');
-  }
+  score = applyLanguagePenalties(score, issues, indicators);
+  score = applyValuePhraseScore(score, issues, strengths, suggestions, indicators);
+  score = applyBusinessMetricScore(score, issues, strengths, suggestions, indicators);
+  score = applyLengthScore(score, wordCount, issues, suggestions, indicators.hasFloweryLanguage);
 
   // Ensure score is within bounds
   score = Math.min(maxScore, Math.max(0, score));
 
-  // Determine grade and color
-  let grade, color;
-  if (score >= 17) {
-    grade = 'Excellent';
-    color = 'green';
-  } else if (score >= 13) {
-    grade = 'Good';
-    color = 'blue';
-  } else if (score >= 9) {
-    grade = 'Fair';
-    color = 'yellow';
-  } else {
-    grade = 'Needs work';
-    color = 'orange';
-  }
-
-  // Build feedback message with specific improvement guidance
-  let feedback;
-  
-  if (hasFloweryLanguage) {
-    // Critical issue - focus on this first
-    feedback = 'Remove emotional language. Focus on measurable business outcomes like "reduce support tickets by 30%".';
-  } else if (score >= 17) {
-    // Excellent - celebrate success
-    feedback = strengths.length > 0 ? strengths.join(', ') + '!' : 'Excellent business value statement!';
-  } else if (score >= 13 && score < 17) {
-    // Good but not excellent - tell them what's missing to get to 17+
-    const missing = [];
-    if (!hasBusinessMetrics) {
-      missing.push('tie to a business metric (response time, conversion rate, cost, revenue)');
-    }
-    if (!hasNumbers) {
-      missing.push('add specific numbers or percentages');
-    }
-    if (hasNumbers && !hasBusinessMetrics) {
-      missing.push('specify what the percentage improves (e.g., "conversion rate" not just generic improvement)');
-    }
-    if (wordCount < 10) {
-      missing.push('add more specific detail');
-    }
-    
-    if (missing.length > 0) {
-      feedback = `To reach Excellent: ${missing.join(', ')}.`;
-    } else {
-      feedback = 'Good! Add more specific business context to reach Excellent.';
-    }
-  } else if (issues.length > 0) {
-    // Fair or Needs work - show main issue
-    feedback = issues[0] + '.';
-  } else {
-    feedback = 'Add specific, measurable business outcomes.';
-  }
+  const { grade, color } = determineSoThatGrade(score);
+  const feedback = buildSoThatFeedback(score, wordCount, issues, strengths, indicators);
 
   return {
     score,
@@ -397,6 +274,161 @@ export function scoreSoThatStatement(soThat) {
     color,
     feedback
   };
+}
+
+function analyzeSoThatIndicators(trimmed, lowerText, words) {
+  const nonBusinessFound = NON_BUSINESS_TERMS.filter(term =>
+    lowerText.includes(term) || words.includes(term)
+  );
+  const floweryPatternMatches = FLOWERY_PATTERNS.filter(pattern => pattern.test(trimmed));
+  const valuePhrasesFound = VALUE_PHRASES.filter(phrase => lowerText.includes(phrase));
+  const businessMetricsFound = BUSINESS_METRICS.filter(metric => lowerText.includes(metric));
+
+  return {
+    nonBusinessFound,
+    floweryPatternMatches,
+    hasFloweryLanguage: nonBusinessFound.length > 0 || floweryPatternMatches.length > 0,
+    hasVaguePhrases: VAGUE_PHRASES.some(phrase => lowerText.includes(phrase)),
+    valuePhrasesFound,
+    hasBusinessMetrics: businessMetricsFound.length > 0,
+    hasNumbers: /\d+/.test(trimmed),
+  };
+}
+
+function applyLanguagePenalties(score, issues, indicators) {
+  if (indicators.hasFloweryLanguage) {
+    score = Math.max(0, score - 8);
+    if (indicators.nonBusinessFound.length > 0) {
+      issues.push(`Avoid non-business terms like "${indicators.nonBusinessFound.slice(0, 2).join('", "')}"`);
+    }
+    if (indicators.floweryPatternMatches.length > 0) {
+      issues.push('Remove emotional/flowery phrases - focus on concrete business outcomes');
+    }
+  }
+
+  if (indicators.hasVaguePhrases) {
+    score = Math.max(0, score - 5);
+    issues.push('Replace vague phrases with specific, measurable outcomes');
+  }
+
+  return score;
+}
+
+function applyValuePhraseScore(score, issues, strengths, suggestions, indicators) {
+  if (indicators.valuePhrasesFound.length === 0) {
+    issues.push('Start with an action verb like "reduce", "increase", or "enable"');
+    suggestions.push('Add a value verb at the start');
+    return score;
+  }
+
+  score += Math.min(9, indicators.valuePhrasesFound.length * 3);
+  if (!indicators.hasFloweryLanguage && !indicators.hasVaguePhrases) {
+    strengths.push('Good use of action verbs');
+  }
+
+  return score;
+}
+
+function applyBusinessMetricScore(score, issues, strengths, suggestions, indicators) {
+  if (indicators.hasBusinessMetrics && indicators.hasNumbers) {
+    score += 8;
+    if (!indicators.hasFloweryLanguage) {
+      strengths.push('Tied to real business metrics');
+    }
+    return score;
+  }
+
+  if (indicators.hasBusinessMetrics) {
+    score += 4;
+    if (!indicators.hasFloweryLanguage) {
+      suggestions.push('Add specific numbers or percentages');
+    }
+    return score;
+  }
+
+  if (indicators.hasNumbers && !indicators.hasFloweryLanguage) {
+    score += 2;
+    issues.push('Link numbers to business metrics (time saved, cost reduced, conversion rate, etc.)');
+    suggestions.push('Connect the percentage to a specific metric like "response time" or "conversion rate"');
+    return score;
+  }
+
+  if (!indicators.hasNumbers && !indicators.hasBusinessMetrics) {
+    issues.push('Add measurable outcomes (e.g., "reduce processing time by 50%")');
+    suggestions.push('Add a specific metric with numbers');
+  }
+
+  return score;
+}
+
+function applyLengthScore(score, wordCount, issues, suggestions, hasFloweryLanguage) {
+  if (wordCount >= 10 && !hasFloweryLanguage) {
+    return score + 5;
+  }
+
+  if (wordCount >= 7) {
+    return score + 3;
+  }
+
+  if (wordCount >= 4) {
+    if (issues.length === 0) {
+      issues.push('Add more detail about the business value or outcome');
+    }
+    return score + 1;
+  }
+
+  issues.push('Too brief - describe the specific value or benefit');
+  suggestions.push('Expand with more detail about the business impact');
+  return score;
+}
+
+function determineSoThatGrade(score) {
+  if (score >= 17) return { grade: 'Excellent', color: 'green' };
+  if (score >= 13) return { grade: 'Good', color: 'blue' };
+  if (score >= 9) return { grade: 'Fair', color: 'yellow' };
+  return { grade: 'Needs work', color: 'orange' };
+}
+
+function buildSoThatFeedback(score, wordCount, issues, strengths, indicators) {
+  if (indicators.hasFloweryLanguage) {
+    return 'Remove emotional language. Focus on measurable business outcomes like "reduce support tickets by 30%".';
+  }
+
+  if (score >= 17) {
+    return strengths.length > 0 ? `${strengths.join(', ')}!` : 'Excellent business value statement!';
+  }
+
+  if (score >= 13) {
+    const missing = getExcellentGapMessages(wordCount, indicators);
+    return missing.length > 0
+      ? `To reach Excellent: ${missing.join(', ')}.`
+      : 'Good! Add more specific business context to reach Excellent.';
+  }
+
+  if (issues.length > 0) {
+    return `${issues[0]}.`;
+  }
+
+  return 'Add specific, measurable business outcomes.';
+}
+
+function getExcellentGapMessages(wordCount, indicators) {
+  const missing = [];
+
+  if (!indicators.hasBusinessMetrics) {
+    missing.push('tie to a business metric (response time, conversion rate, cost, revenue)');
+  }
+  if (!indicators.hasNumbers) {
+    missing.push('add specific numbers or percentages');
+  }
+  if (indicators.hasNumbers && !indicators.hasBusinessMetrics) {
+    missing.push('specify what the percentage improves (e.g., "conversion rate" not just generic improvement)');
+  }
+  if (wordCount < 10) {
+    missing.push('add more specific detail');
+  }
+
+  return missing;
 }
 
 /**
