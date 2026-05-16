@@ -16,6 +16,115 @@ const FORMAT_HINTS = {
   ]
 };
 
+const VAGUE_WORDS = ['basically', 'sort of', 'kind of', 'maybe', 'probably', 'might', 'somewhat'];
+const BULLET_PREFIXES = ['the system', 'the user', 'user can', 'system must'];
+const CRITERION_TOOLTIP_CONTENT = {
+  excellent: {
+    gherkin: {
+      good: [
+        '"Given user is logged in, When they click export, Then the system displays a success message"',
+        '"When form is submitted with valid data, Then system shows confirmation and redirects to dashboard"',
+        '"Given email field is empty, When user clicks submit, Then error message appears below the field"'
+      ],
+      avoid: [
+        '"When something happens" (too vague)',
+        '"Then it works" (not observable)',
+        '"Given setup, When action, Then result" (too generic)'
+      ]
+    },
+    bullet: {
+      good: [
+        '"The system displays inline error messages below each invalid field when user submits the form"',
+        '"The user can filter search results by category, date range, and status using the sidebar filters"',
+        '"The page shows a loading spinner in the center while data is being fetched from the API"'
+      ],
+      avoid: [
+        '"System works properly" (what does "properly" mean?)',
+        '"User sees things change" (what things?)',
+        '"The button does something" (what outcome?)'
+      ]
+    }
+  },
+  good: {
+    gherkin: {
+      good: [
+        'Add specific UI elements: "Then error message appears below the field"',
+        'Include observable outcomes: "displays", "shows", "redirects"',
+        'Be specific about data: "with user profile data", "containing order ID"'
+      ],
+      avoid: [
+        '"Then system responds" (how?)',
+        '"Then page loads" (what does it show?)',
+        'Missing specific observable outcomes'
+      ]
+    },
+    bullet: {
+      good: [
+        'Add specific elements: "The system displays a confirmation modal"',
+        'Include observable details: "updates the cart icon count"',
+        'Be clear about outcomes: "shows validation errors below each field"'
+      ],
+      avoid: [
+        '"User can do things" (what things?)',
+        '"System handles the request" (how is this visible?)',
+        'Vague actions without observable results'
+      ]
+    }
+  },
+  fair: {
+    gherkin: {
+      good: [
+        'Use full structure: "Given [context], When [action], Then [outcome]"',
+        'Add observable outcomes: message displays, button appears, page redirects',
+        'Be specific: mention field names, button labels, error messages'
+      ],
+      avoid: [
+        'Incomplete Gherkin: only "When..." without "Then..."',
+        'Generic terms: "something", "it", "stuff"',
+        'No observable outcome mentioned'
+      ]
+    },
+    bullet: {
+      good: [
+        'Start with "The system..." or "The user can..."',
+        'Include observable outcomes: displays, shows, enables, disables',
+        'Reference specific UI elements: buttons, fields, modals, messages'
+      ],
+      avoid: [
+        'Starting with just a verb: "Validate input"',
+        'Too brief: "Error shown"',
+        'No clear ownership or observable result'
+      ]
+    }
+  },
+  needsWork: {
+    gherkin: {
+      good: [
+        'Format: "Given [context], When [action], Then [observable outcome]"',
+        'Example: "When user enters invalid email, Then error message displays below field"',
+        'Always include an observable "Then" statement with specific UI feedback'
+      ],
+      avoid: [
+        '"It works" or "System processes" (not Gherkin format)',
+        'Extremely brief: "Works correctly"',
+        'Emotional/vague language: "makes user happy", "kind of good"'
+      ]
+    },
+    bullet: {
+      good: [
+        'Format: "The system [action] [specific outcome]" or "The user can [capability]"',
+        'Example: "The system displays a validation error when email format is invalid"',
+        'Example: "The user can sort the table by clicking any column header"'
+      ],
+      avoid: [
+        'Just verbs: "Validates", "Processes", "Handles"',
+        'Too vague: "Works fine", "Does stuff"',
+        'No observable outcome or UI feedback mentioned'
+      ]
+    }
+  }
+};
+
 const TEMPLATE_STORAGE_KEY = 'acceptanceCriteriaTemplates';
 const MIN_CRITERIA_FIELDS = 3;
 const MAX_CRITERIA_FIELDS = 7;
@@ -213,37 +322,14 @@ function getHintForCriterion(criterion, format) {
   if (!text) return null;
 
   const lower = text.toLowerCase();
-
-  if (format === 'gherkin') {
-    if (!lower.startsWith('given') && !lower.startsWith('when') && !lower.startsWith('then') && !lower.startsWith('and')) {
-      return 'Try starting with "Given", "When", or "Then" to follow Gherkin format.';
-    }
-    if (lower.startsWith('given') && !lower.includes('when') && !lower.includes('then')) {
-      return 'Add a "When" clause to describe the action, and a "Then" clause for the outcome.';
-    }
-    if (lower.startsWith('when') && !lower.includes('then')) {
-      return 'Add a "Then" clause to describe the expected observable outcome.';
-    }
-  }
-
-  if (format === 'bullet') {
-    if (!lower.startsWith('the system') && !lower.startsWith('the user') &&
-        !lower.startsWith('user can') && !lower.startsWith('system must')) {
-      return 'Start with "The system must..." or "The user can..." for a clear, testable statement.';
-    }
-  }
-
-  const VAGUE_WORDS = ['basically', 'sort of', 'kind of', 'maybe', 'probably', 'might', 'somewhat'];
-  const hasVague = VAGUE_WORDS.some(w => lower.includes(w));
-  if (hasVague) {
+  const formatHint = getFormatHintForCriterion(lower, format);
+  if (formatHint) return formatHint;
+  if (VAGUE_WORDS.some((word) => lower.includes(word))) {
     return 'Replace vague words with specific, measurable language.';
   }
-
-  if (text.split(/\s+/).length < 5) {
-    return 'This criterion is quite short – add more detail to make it testable.';
-  }
-
-  return null;
+  return text.split(/\s+/).length < 5
+    ? 'This criterion is quite short – add more detail to make it testable.'
+    : null;
 }
 
 /**
@@ -252,98 +338,47 @@ function getHintForCriterion(criterion, format) {
  */
 function getCriterionTooltipContent(rating, format) {
   if (!rating) return null;
+  const tier = getCriterionTooltipTier(rating.score);
+  const formatKey = format === 'gherkin' ? 'gherkin' : 'bullet';
+  return CRITERION_TOOLTIP_CONTENT[tier][formatKey];
+}
 
-  const isGherkin = format === 'gherkin';
-
-  if (rating.score >= 9) {
-    // Excellent - show what makes it great
-    return {
-      good: isGherkin ? [
-        '"Given user is logged in, When they click export, Then the system displays a success message"',
-        '"When form is submitted with valid data, Then system shows confirmation and redirects to dashboard"',
-        '"Given email field is empty, When user clicks submit, Then error message appears below the field"'
-      ] : [
-        '"The system displays inline error messages below each invalid field when user submits the form"',
-        '"The user can filter search results by category, date range, and status using the sidebar filters"',
-        '"The page shows a loading spinner in the center while data is being fetched from the API"'
-      ],
-      avoid: isGherkin ? [
-        '"When something happens" (too vague)',
-        '"Then it works" (not observable)',
-        '"Given setup, When action, Then result" (too generic)'
-      ] : [
-        '"System works properly" (what does "properly" mean?)',
-        '"User sees things change" (what things?)',
-        '"The button does something" (what outcome?)'
-      ]
-    };
-  } else if (rating.score >= 7) {
-    // Good - needs more detail
-    return {
-      good: isGherkin ? [
-        'Add specific UI elements: "Then error message appears below the field"',
-        'Include observable outcomes: "displays", "shows", "redirects"',
-        'Be specific about data: "with user profile data", "containing order ID"'
-      ] : [
-        'Add specific elements: "The system displays a confirmation modal"',
-        'Include observable details: "updates the cart icon count"',
-        'Be clear about outcomes: "shows validation errors below each field"'
-      ],
-      avoid: isGherkin ? [
-        '"Then system responds" (how?)',
-        '"Then page loads" (what does it show?)',
-        'Missing specific observable outcomes'
-      ] : [
-        '"User can do things" (what things?)',
-        '"System handles the request" (how is this visible?)',
-        'Vague actions without observable results'
-      ]
-    };
-  } else if (rating.score >= 5) {
-    // Fair - needs structure or observables
-    return {
-      good: isGherkin ? [
-        'Use full structure: "Given [context], When [action], Then [outcome]"',
-        'Add observable outcomes: message displays, button appears, page redirects',
-        'Be specific: mention field names, button labels, error messages'
-      ] : [
-        'Start with "The system..." or "The user can..."',
-        'Include observable outcomes: displays, shows, enables, disables',
-        'Reference specific UI elements: buttons, fields, modals, messages'
-      ],
-      avoid: isGherkin ? [
-        'Incomplete Gherkin: only "When..." without "Then..."',
-        'Generic terms: "something", "it", "stuff"',
-        'No observable outcome mentioned'
-      ] : [
-        'Starting with just a verb: "Validate input"',
-        'Too brief: "Error shown"',
-        'No clear ownership or observable result'
-      ]
-    };
-  } else {
-    // Needs work - fundamental issues
-    return {
-      good: isGherkin ? [
-        'Format: "Given [context], When [action], Then [observable outcome]"',
-        'Example: "When user enters invalid email, Then error message displays below field"',
-        'Always include an observable "Then" statement with specific UI feedback'
-      ] : [
-        'Format: "The system [action] [specific outcome]" or "The user can [capability]"',
-        'Example: "The system displays a validation error when email format is invalid"',
-        'Example: "The user can sort the table by clicking any column header"'
-      ],
-      avoid: isGherkin ? [
-        '"It works" or "System processes" (not Gherkin format)',
-        'Extremely brief: "Works correctly"',
-        'Emotional/vague language: "makes user happy", "kind of good"'
-      ] : [
-        'Just verbs: "Validates", "Processes", "Handles"',
-        'Too vague: "Works fine", "Does stuff"',
-        'No observable outcome or UI feedback mentioned'
-      ]
-    };
+/**
+ * Returns the next format-specific hint for a criterion, if any.
+ * @param {string} lower
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {string | null}
+ */
+function getFormatHintForCriterion(lower, format) {
+  if (format === 'gherkin') {
+    const startsWithStep = ['given', 'when', 'then', 'and'].some((prefix) => lower.startsWith(prefix));
+    if (!startsWithStep) {
+      return 'Try starting with "Given", "When", or "Then" to follow Gherkin format.';
+    }
+    if (lower.startsWith('given') && !lower.includes('when') && !lower.includes('then')) {
+      return 'Add a "When" clause to describe the action, and a "Then" clause for the outcome.';
+    }
+    if (lower.startsWith('when') && !lower.includes('then')) {
+      return 'Add a "Then" clause to describe the expected observable outcome.';
+    }
+    return null;
   }
+
+  return BULLET_PREFIXES.some((prefix) => lower.startsWith(prefix))
+    ? null
+    : 'Start with "The system must..." or "The user can..." for a clear, testable statement.';
+}
+
+/**
+ * Maps a criterion score to its tooltip tier.
+ * @param {number} score
+ * @returns {'excellent' | 'good' | 'fair' | 'needsWork'}
+ */
+function getCriterionTooltipTier(score) {
+  if (score >= 9) return 'excellent';
+  if (score >= 7) return 'good';
+  if (score >= 5) return 'fair';
+  return 'needsWork';
 }
 
 /**
@@ -432,6 +467,166 @@ function parseStoryText(storyText) {
     { label: 'I want', value: match[2].trim() },
     { label: 'So that', value: match[3].trim() }
   ];
+}
+
+function CriterionTooltipPopover({ rating, format }) {
+  const tooltipContent = getCriterionTooltipContent(rating, format);
+  if (!tooltipContent) return null;
+
+  return (
+    <div className="relative group inline-flex">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-4 h-4 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-help flex-shrink-0"
+        fill="currentColor"
+        viewBox="0 0 20 20"
+      >
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+      <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-80 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 border border-slate-700">
+        <div className="mb-2">
+          <div className="font-semibold text-green-400 mb-1">
+            ✓ {rating.score >= 9 ? 'Excellent examples' : 'To improve'}:
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-gray-200">
+            {tooltipContent.good.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <div className="font-semibold text-red-400 mb-1">✗ Avoid:</div>
+          <ul className="list-disc list-inside space-y-1 text-gray-200">
+            {tooltipContent.avoid.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CriterionRatingSummary({ rating, format }) {
+  if (!rating) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+          rating.color === 'green' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' :
+          rating.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800' :
+          rating.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800' :
+          'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800'
+        }`}>
+          {rating.score}/{rating.maxScore} - {rating.grade}
+        </span>
+        {rating.breakdown && (
+          <div className="flex gap-2 text-xs flex-wrap">
+            {Object.entries(rating.breakdown).map(([key, data]) => {
+              const tooltip = getBreakdownTooltip(key, data, format);
+              return (
+                <div key={key} className="flex items-center gap-1">
+                  <span className="text-gray-500 dark:text-gray-400">{data.label}:</span>
+                  <span className={`font-semibold ${
+                    data.score >= data.maxScore * 0.8 ? 'text-green-600 dark:text-green-400' :
+                    data.score >= data.maxScore * 0.6 ? 'text-blue-600 dark:text-blue-400' :
+                    data.score >= data.maxScore * 0.4 ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-orange-600 dark:text-orange-400'
+                  }`}>
+                    {data.score}/{data.maxScore}
+                  </span>
+                  {tooltip && (
+                    <div className="relative group/breakdown inline-flex">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-3 h-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                      <div className="invisible group-hover/breakdown:visible absolute left-0 bottom-full mb-2 w-72 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 border border-slate-700">
+                        <div className="font-semibold text-blue-400 mb-2">{tooltip.title}</div>
+                        <ul className="list-disc list-inside space-y-1 text-gray-200">
+                          {tooltip.tips.map((tip, idx) => (
+                            <li key={idx} className="leading-relaxed">{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <CriterionTooltipPopover rating={rating} format={format} />
+      </div>
+      {rating.feedback && (
+        <div className="text-xs text-gray-600 dark:text-gray-400">
+          {rating.feedback}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CriterionEditor(props) {
+  const {
+    criterion,
+    index,
+    criteriaLength,
+    format,
+    rating,
+    hint,
+    handleCriterionChange,
+    handleBlur,
+    removeCriterion,
+  } = props;
+
+  return (
+    <div className="relative">
+      <label
+        htmlFor={`criterion-${index}`}
+        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+      >
+        Criterion {index + 1} {index < 1 && <span className="text-red-500">*</span>}
+      </label>
+      <div className="flex gap-2">
+        <textarea
+          id={`criterion-${index}`}
+          value={criterion}
+          onChange={(e) => handleCriterionChange(index, e.target.value)}
+          onBlur={() => handleBlur(index, criterion)}
+          placeholder={
+            format === 'gherkin'
+              ? 'Given [context]\nWhen [action]\nThen [outcome]'
+              : 'The system/user must...'
+          }
+          rows={format === 'gherkin' ? 3 : 2}
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          required={index === 0}
+        />
+        {criteriaLength > 1 && (
+          <button
+            type="button"
+            onClick={() => removeCriterion(index)}
+            className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+            aria-label="Remove criterion"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      <CriterionRatingSummary rating={rating} format={format} />
+      {hint && (
+        <p style={{ backgroundColor: 'rgba(0,0,0,0.1)' }} className="mt-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-2 py-1" role="note">
+          💡 {hint}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCriteriaData = null }) {
@@ -714,140 +909,18 @@ export default function AcceptanceCriteriaForm({ onSubmit, storyText, initialCri
       {/* Criteria Inputs */}
       <div className="space-y-3">
         {criteria.map((criterion, index) => (
-          <div key={index} className="relative">
-            <label 
-              htmlFor={`criterion-${index}`} 
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Criterion {index + 1} {index < 1 && <span className="text-red-500">*</span>}
-            </label>
-            <div className="flex gap-2">
-              <textarea
-                id={`criterion-${index}`}
-                value={criterion}
-                onChange={(e) => handleCriterionChange(index, e.target.value)}
-                onBlur={() => handleBlur(index, criterion)}
-                placeholder={
-                  format === 'gherkin'
-                    ? 'Given [context]\nWhen [action]\nThen [outcome]'
-                    : 'The system/user must...'
-                }
-                rows={format === 'gherkin' ? 3 : 2}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                required={index === 0}
-              />
-              {criteria.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeCriterion(index)}
-                  className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                  aria-label="Remove criterion"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            {ratings[index] && (
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
-                    ratings[index].color === 'green' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' :
-                    ratings[index].color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800' :
-                    ratings[index].color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800' :
-                    'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800'
-                  }`}>
-                    {ratings[index].score}/{ratings[index].maxScore} - {ratings[index].grade}
-                  </span>
-                  {ratings[index].breakdown && (
-                    <div className="flex gap-2 text-xs flex-wrap">
-                      {Object.entries(ratings[index].breakdown).map(([key, data]) => {
-                        const tooltip = getBreakdownTooltip(key, data, format);
-                        return (
-                          <div key={key} className="flex items-center gap-1">
-                            <span className="text-gray-500 dark:text-gray-400">{data.label}:</span>
-                            <span className={`font-semibold ${
-                              data.score >= data.maxScore * 0.8 ? 'text-green-600 dark:text-green-400' :
-                              data.score >= data.maxScore * 0.6 ? 'text-blue-600 dark:text-blue-400' :
-                              data.score >= data.maxScore * 0.4 ? 'text-yellow-600 dark:text-yellow-400' :
-                              'text-orange-600 dark:text-orange-400'
-                            }`}>
-                              {data.score}/{data.maxScore}
-                            </span>
-                            {tooltip && (
-                              <div className="relative group/breakdown inline-flex">
-                                <svg 
-                                  xmlns="http://www.w3.org/2000/svg" 
-                                  className="w-3 h-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help" 
-                                  fill="currentColor" 
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                </svg>
-                                <div className="invisible group-hover/breakdown:visible absolute left-0 bottom-full mb-2 w-72 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 border border-slate-700">
-                                  <div className="font-semibold text-blue-400 mb-2">{tooltip.title}</div>
-                                  <ul className="list-disc list-inside space-y-1 text-gray-200">
-                                    {tooltip.tips.map((tip, idx) => (
-                                      <li key={idx} className="leading-relaxed">{tip}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="relative group inline-flex">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="w-4 h-4 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-help flex-shrink-0" 
-                      fill="currentColor" 
-                      viewBox="0 0 20 20"
-                    >
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    {(() => {
-                      const tooltipContent = getCriterionTooltipContent(ratings[index], format);
-                      if (!tooltipContent) return null;
-                      return (
-                        <div className="invisible group-hover:visible absolute left-0 bottom-full mb-2 w-80 p-3 bg-slate-800 text-white text-xs rounded-lg shadow-xl z-50 border border-slate-700">
-                          <div className="mb-2">
-                            <div className="font-semibold text-green-400 mb-1">
-                              ✓ {ratings[index].score >= 9 ? 'Excellent examples' : 'To improve'}:
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-gray-200">
-                              {tooltipContent.good.map((item, idx) => (
-                                <li key={idx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-red-400 mb-1">✗ Avoid:</div>
-                            <ul className="list-disc list-inside space-y-1 text-gray-200">
-                              {tooltipContent.avoid.map((item, idx) => (
-                                <li key={idx}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-                {ratings[index].feedback && (
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    {ratings[index].feedback}
-                  </div>
-                )}
-              </div>
-            )}
-            {hints[index] && (
-              <p style={{backgroundColor: 'rgba(0,0,0,0.1)'}} className="mt-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-2 py-1" role="note">
-                💡 {hints[index]}
-              </p>
-            )}
-          </div>
+          <CriterionEditor
+            key={index}
+            criterion={criterion}
+            index={index}
+            criteriaLength={criteria.length}
+            format={format}
+            rating={ratings[index]}
+            hint={hints[index]}
+            handleCriterionChange={handleCriterionChange}
+            handleBlur={handleBlur}
+            removeCriterion={removeCriterion}
+          />
         ))}
       </div>
 

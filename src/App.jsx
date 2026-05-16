@@ -15,6 +15,718 @@ import { scoreStory, checkAchievements } from './scoringEngine';
 import { scoreCriteria, checkCriteriaAchievements } from './criteriaScoring';
 import { validateOpenAIKey, improveStoryWithAI, improveCriteriaWithAI } from './llmService';
 
+/**
+ * Scrolls to the bottom after state updates so newly revealed results stay in view.
+ */
+function scrollToPageBottom() {
+  setTimeout(() => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }, 100);
+}
+
+/**
+ * Builds the canonical story sentence shown to the criteria step.
+ * @param {object} story
+ * @returns {string}
+ */
+function buildStoryText(story) {
+  return `As a ${story.asA}, I want ${story.iWant} so that ${story.soThat}.`;
+}
+
+/**
+ * Extracts story form fields with safe string fallbacks.
+ * @param {object} story
+ * @returns {{asA: string, iWant: string, soThat: string}}
+ */
+function getStoryFields(story) {
+  return {
+    asA: story?.asA || '',
+    iWant: story?.iWant || '',
+    soThat: story?.soThat || '',
+  };
+}
+
+/**
+ * Clones AI criteria suggestions and marks each one as not yet applied.
+ * @param {object} suggestion
+ * @returns {object}
+ */
+function markCriteriaSuggestionsPending(suggestion) {
+  return {
+    ...suggestion,
+    suggestions: (suggestion?.suggestions || []).map((item) => ({ ...item, applied: false })),
+  };
+}
+
+/**
+ * Finds the best criteria index to replace for a single AI suggestion.
+ * @param {string[]} criteria
+ * @param {{original?: string}} suggestion
+ * @param {number} suggestionIndex
+ * @returns {number}
+ */
+function findCriteriaSuggestionTargetIndex(criteria, suggestion, suggestionIndex) {
+  const originalNormalized = (suggestion.original || '').trim();
+  const matchedIndex = criteria.findIndex((criterion) => (criterion || '').trim() === originalNormalized);
+  if (matchedIndex >= 0) {
+    return matchedIndex;
+  }
+
+  return suggestionIndex < criteria.length ? suggestionIndex : -1;
+}
+
+/**
+ * Builds the next criteria draft state after applying one AI suggestion.
+ * @param {{criteria: string[], format?: string}} criteriaDraftInput
+ * @param {{improved: string, original?: string}} suggestion
+ * @param {number} suggestionIndex
+ * @returns {{criteria: string[], format: string} | null}
+ */
+function buildAppliedCriteriaData(criteriaDraftInput, suggestion, suggestionIndex) {
+  const currentCriteria = [...criteriaDraftInput.criteria];
+  const targetIndex = findCriteriaSuggestionTargetIndex(currentCriteria, suggestion, suggestionIndex);
+  if (targetIndex < 0) {
+    return null;
+  }
+
+  currentCriteria[targetIndex] = suggestion.improved;
+  const format = criteriaDraftInput?.format ?? 'gherkin';
+  return {
+    criteria: currentCriteria,
+    format,
+  };
+}
+
+/**
+ * Determines whether history loading should restore story state from a saved entry.
+ * @param {{confirmedStory: object|null, storyFinalResult: object|null, storyDraftInput: object|null, storyDraftResult: object|null}} state
+ * @returns {boolean}
+ */
+function shouldHydrateStoryFromHistory({ confirmedStory, storyFinalResult, storyDraftInput, storyDraftResult }) {
+  return !(confirmedStory || storyFinalResult || storyDraftInput || storyDraftResult);
+}
+
+/**
+ * Builds the request payload for criteria improvement calls.
+ * @param {object} criteriaDraftInput
+ * @param {object} criteriaDraftResult
+ * @param {object} confirmedStory
+ * @param {string} aiApiKey
+ * @returns {object}
+ */
+function buildImproveCriteriaRequest(criteriaDraftInput, criteriaDraftResult, confirmedStory, aiApiKey) {
+  return {
+    criteria: criteriaDraftInput?.criteria,
+    format: criteriaDraftInput?.format,
+    draftScore: criteriaDraftResult?.totalScore,
+    breakdown: criteriaDraftResult?.breakdown,
+    hintTargets: criteriaDraftResult?.hintTargets,
+    story: confirmedStory,
+    apiKey: aiApiKey,
+  };
+}
+
+function AIDisabledButton({ label }) {
+  return (
+    <button
+      disabled
+      title="Enable AI in the panel above to use this feature"
+      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md cursor-not-allowed"
+    >
+      {label}
+    </button>
+  );
+}
+
+function StoryDraftActions({ aiEnabled, storyAISuggestion, handleImproveStoryWithAI, storyAILoading, handleConfirmStory }) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {aiEnabled && !storyAISuggestion ? (
+        <button
+          onClick={handleImproveStoryWithAI}
+          disabled={storyAILoading}
+          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+        >
+          {storyAILoading ? '⏳ Improving…' : '✨ Improve with AI'}
+        </button>
+      ) : (
+        !aiEnabled && <AIDisabledButton label="✨ Improve with AI" />
+      )}
+      <button
+        onClick={handleConfirmStory}
+        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+      >
+        ✅ Confirm Story
+      </button>
+    </div>
+  );
+}
+
+function StoryConfirmedPanel({ confirmedStory, handleScoreFinalStory }) {
+  return (
+    <div className="mt-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+      <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+        ✅ Story Confirmed
+      </h3>
+      <p className="text-sm text-green-700 dark:text-green-300 mb-1">
+        <span className="font-medium">As a:</span> {confirmedStory.asA}
+      </p>
+      <p className="text-sm text-green-700 dark:text-green-300 mb-1">
+        <span className="font-medium">I want:</span> {confirmedStory.iWant}
+      </p>
+      <p className="text-sm text-green-700 dark:text-green-300 mb-4">
+        <span className="font-medium">So that:</span> {confirmedStory.soThat}
+      </p>
+      <button
+        onClick={handleScoreFinalStory}
+        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+      >
+        🎯 Calculate Final Story Score
+      </button>
+    </div>
+  );
+}
+
+function CriteriaDraftActions({
+  aiEnabled,
+  criteriaAISuggestion,
+  handleImproveCriteriaWithAI,
+  criteriaAILoading,
+  handleConfirmCriteria,
+}) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {aiEnabled && !criteriaAISuggestion ? (
+        <button
+          onClick={handleImproveCriteriaWithAI}
+          disabled={criteriaAILoading}
+          className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+        >
+          {criteriaAILoading ? '⏳ Improving…' : '✨ Improve Criteria with AI'}
+        </button>
+      ) : (
+        !aiEnabled && <AIDisabledButton label="✨ Improve Criteria with AI" />
+      )}
+      <button
+        onClick={handleConfirmCriteria}
+        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+      >
+        ✅ Confirm Criteria
+      </button>
+    </div>
+  );
+}
+
+function CriteriaConfirmedPanel({ confirmedCriteria, handleScoreFinalCriteria }) {
+  return (
+    <div className="mt-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+      <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+        ✅ Criteria Confirmed ({confirmedCriteria.criteria.length} criteria)
+      </h3>
+      <ul className="list-disc list-inside text-sm text-green-700 dark:text-green-300 mb-4 space-y-1">
+        {confirmedCriteria.criteria.map((criterion, index) => (
+          <li key={index} className="truncate">{criterion}</li>
+        ))}
+      </ul>
+      <button
+        onClick={handleScoreFinalCriteria}
+        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+      >
+        🎯 Calculate Final Criteria Score
+      </button>
+    </div>
+  );
+}
+
+function CriteriaCompleteResults({ criteriaFinalResult, criteriaDraftResult }) {
+  if (!criteriaFinalResult) return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-1">
+        ✅ Your Criteria Score
+      </h2>
+      <ScoreDelta draftScore={criteriaDraftResult?.totalScore} finalScore={criteriaFinalResult.totalScore} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CriteriaScoreBreakdown result={criteriaFinalResult} />
+        <CriteriaFeedbackPanel result={criteriaFinalResult} />
+      </div>
+    </div>
+  );
+}
+
+function CompletionSummary({ storyFinalResult, criteriaFinalResult }) {
+  if (!storyFinalResult || !criteriaFinalResult) return null;
+
+  return (
+    <div className="mb-8">
+      <CombinedScoreSummary
+        storyScore={storyFinalResult.totalScore}
+        criteriaScore={criteriaFinalResult.totalScore}
+      />
+    </div>
+  );
+}
+
+function CompletionExport({ confirmedStory, confirmedCriteria }) {
+  if (!confirmedStory || !confirmedCriteria) return null;
+
+  return (
+    <div className="mb-8">
+      <StoryAndCriteriaExport
+        story={confirmedStory}
+        criteria={confirmedCriteria.criteria}
+      />
+    </div>
+  );
+}
+
+function StartNewStoryButton({ handleStartNew }) {
+  return (
+    <div className="mb-8">
+      <button
+        onClick={handleStartNew}
+        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+      >
+        ✨ Start New Story
+      </button>
+    </div>
+  );
+}
+
+function ScoreDelta({ draftScore, finalScore }) {
+  if (draftScore == null) return null;
+  const delta = finalScore - draftScore;
+
+  return (
+    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+      Draft: {draftScore} → Final: {finalScore}
+      {delta !== 0 && (
+        <span className={delta > 0 ? ' text-green-500 ml-1' : ' text-red-500 ml-1'}>
+          ({delta > 0 ? '+' : ''}{delta})
+        </span>
+      )}
+    </p>
+  );
+}
+
+function StoryAISuggestionPanel({ storyAISuggestion, onApply, onDismiss }) {
+  if (!storyAISuggestion) return null;
+  const { issues, suggestion, rationale } = storyAISuggestion;
+
+  return (
+    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
+      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">🤖 AI Suggestion</h4>
+      {issues?.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Issues found:</p>
+          <ul className="list-disc list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
+            {issues.map((issue, index) => <li key={index}>{issue}</li>)}
+          </ul>
+        </div>
+      )}
+      {suggestion && (
+        <div className="mb-3 bg-white dark:bg-slate-800 rounded p-3 text-sm space-y-1">
+          <p><span className="font-medium">As a:</span> {suggestion.asA}</p>
+          <p><span className="font-medium">I want:</span> {suggestion.iWant}</p>
+          <p><span className="font-medium">So that:</span> {suggestion.soThat}</p>
+        </div>
+      )}
+      {rationale?.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Why this helps:</p>
+          <ul className="list-disc list-inside text-xs text-blue-600 dark:text-blue-400 space-y-1">
+            {rationale.map((item, index) => <li key={index}><strong>{item.criterion}:</strong> {item.reason}</li>)}
+          </ul>
+        </div>
+      )}
+      <div className="flex gap-2">
+        {suggestion && (
+          <button
+            onClick={onApply}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Apply Suggestion
+          </button>
+        )}
+        <button
+          onClick={onDismiss}
+          className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-300"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CriteriaAISuggestionPanel({ criteriaAISuggestion, onApplyAll, onApplyOne, onDismiss }) {
+  if (!criteriaAISuggestion) return null;
+  const { suggestions, guidance } = criteriaAISuggestion;
+
+  return (
+    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
+      <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">🤖 AI Suggestion</h4>
+      {suggestions?.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {suggestions.map((suggestion, index) => (
+            <div key={index} className="bg-white dark:bg-slate-800 rounded p-3 text-sm">
+              <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Original:</p>
+              <p className="mb-2 text-gray-700 dark:text-gray-300">{suggestion.original}</p>
+              <p className="text-blue-600 dark:text-blue-400 text-xs mb-1">Improved:</p>
+              <p className="text-blue-800 dark:text-blue-200">{suggestion.improved}</p>
+              <div className="mt-3">
+                <button
+                  onClick={() => onApplyOne(index)}
+                  disabled={Boolean(suggestion.applied)}
+                  className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                    suggestion.applied
+                      ? 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {suggestion.applied ? 'Applied' : 'Apply Suggestion'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {guidance?.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Guidance:</p>
+          <ul className="list-disc list-inside text-xs text-blue-600 dark:text-blue-400 space-y-1">
+            {guidance.map((item, index) => <li key={index}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      <div className="flex gap-2">
+        {suggestions?.length > 0 && (
+          <button
+            onClick={onApplyAll}
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Apply All Suggestions
+          </button>
+        )}
+        <button
+          onClick={onDismiss}
+          className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-300"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AppHeader({ storyHistoryLength }) {
+  return (
+    <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              📖 Agile Story Builder
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
+              Learn to write better user stories through gamified practice
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {storyHistoryLength > 0 && (
+              <button
+                onClick={() => document.getElementById('session-history')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                📜 Session History ({storyHistoryLength})
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function StoryPhaseSection(props) {
+  const {
+    phase,
+    confirmedStory,
+    storyFormVersion,
+    handleScoreDraftStory,
+    initialStoryData,
+    storyDraftResult,
+    storyAISuggestion,
+    handleApplyStorySuggestion,
+    setStoryAISuggestion,
+    storyAIError,
+    aiEnabled,
+    handleImproveStoryWithAI,
+    storyAILoading,
+    handleConfirmStory,
+    handleScoreFinalStory,
+  } = props;
+
+  if (phase !== 'story') return null;
+
+  return (
+    <div className="mb-8">
+      {!confirmedStory && (
+        <StoryForm
+          key={storyFormVersion}
+          onSubmit={handleScoreDraftStory}
+          initialStory={initialStoryData}
+        />
+      )}
+
+      {storyDraftResult && !confirmedStory && (
+        <div className="mt-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+            📝 Draft Story Score
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+            <ScoreBreakdown result={storyDraftResult} />
+            <FeedbackPanel result={storyDraftResult} />
+          </div>
+
+          <StoryAISuggestionPanel
+            storyAISuggestion={storyAISuggestion}
+            onApply={handleApplyStorySuggestion}
+            onDismiss={() => setStoryAISuggestion(null)}
+          />
+
+          {storyAIError && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400 mb-3">
+              ⚠ {storyAIError}
+            </p>
+          )}
+
+          <StoryDraftActions
+            aiEnabled={aiEnabled}
+            storyAISuggestion={storyAISuggestion}
+            handleImproveStoryWithAI={handleImproveStoryWithAI}
+            storyAILoading={storyAILoading}
+            handleConfirmStory={handleConfirmStory}
+          />
+        </div>
+      )}
+
+      {confirmedStory && !props.storyFinalResult && (
+        <StoryConfirmedPanel
+          confirmedStory={confirmedStory}
+          handleScoreFinalStory={handleScoreFinalStory}
+        />
+      )}
+    </div>
+  );
+}
+
+function StoryFinalSection({ storyFinalResult, phase, storyDraftResult }) {
+  if (!storyFinalResult || phase === 'story') return null;
+
+  return (
+    <div className="mb-8">
+      <h2 className="text-2xl font-bold text-gray-200 mb-1">📝 Your Story Score</h2>
+      <ScoreDelta draftScore={storyDraftResult?.totalScore} finalScore={storyFinalResult.totalScore} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <ScoreBreakdown result={storyFinalResult} />
+        <FeedbackPanel result={storyFinalResult} />
+      </div>
+    </div>
+  );
+}
+
+function CriteriaPhaseSection(props) {
+  const {
+    phase,
+    confirmedStory,
+    confirmedCriteria,
+    criteriaFormVersion,
+    handleScoreDraftCriteria,
+    initialCriteriaData,
+    criteriaDraftResult,
+    criteriaAISuggestion,
+    handleApplyCriteriaSuggestion,
+    handleApplySingleCriteriaSuggestion,
+    setCriteriaAISuggestion,
+    criteriaAIError,
+    aiEnabled,
+    handleImproveCriteriaWithAI,
+    criteriaAILoading,
+    handleConfirmCriteria,
+    handleScoreFinalCriteria,
+    criteriaFinalResult,
+  } = props;
+
+  if (phase !== 'criteria' || !confirmedStory) return null;
+
+  return (
+    <div className="mb-8">
+      {!confirmedCriteria && (
+        <AcceptanceCriteriaForm
+          key={criteriaFormVersion}
+          onSubmit={handleScoreDraftCriteria}
+          storyText={buildStoryText(confirmedStory)}
+          initialCriteriaData={initialCriteriaData}
+        />
+      )}
+
+      {criteriaDraftResult && !confirmedCriteria && (
+        <div className="mt-6">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
+            ✅ Draft Criteria Score
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+            <CriteriaScoreBreakdown result={criteriaDraftResult} />
+            <CriteriaFeedbackPanel result={criteriaDraftResult} />
+          </div>
+
+          <CriteriaAISuggestionPanel
+            criteriaAISuggestion={criteriaAISuggestion}
+            onApplyAll={handleApplyCriteriaSuggestion}
+            onApplyOne={handleApplySingleCriteriaSuggestion}
+            onDismiss={() => setCriteriaAISuggestion(null)}
+          />
+
+          {criteriaAIError && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400 mb-3">
+              ⚠ {criteriaAIError}
+            </p>
+          )}
+
+          <CriteriaDraftActions
+            aiEnabled={aiEnabled}
+            criteriaAISuggestion={criteriaAISuggestion}
+            handleImproveCriteriaWithAI={handleImproveCriteriaWithAI}
+            criteriaAILoading={criteriaAILoading}
+            handleConfirmCriteria={handleConfirmCriteria}
+          />
+        </div>
+      )}
+
+      {confirmedCriteria && !criteriaFinalResult && (
+        <CriteriaConfirmedPanel
+          confirmedCriteria={confirmedCriteria}
+          handleScoreFinalCriteria={handleScoreFinalCriteria}
+        />
+      )}
+    </div>
+  );
+}
+
+function CompletePhaseSection({
+  phase,
+  criteriaFinalResult,
+  criteriaDraftResult,
+  storyFinalResult,
+  confirmedStory,
+  confirmedCriteria,
+  achievements,
+  handleStartNew,
+}) {
+  const isComplete = phase === 'complete';
+  if (!isComplete) {
+    return achievements.length > 0 ? (
+      <div className="mb-8">
+        <Achievements achievements={achievements} />
+      </div>
+    ) : null;
+  }
+
+  return (
+    <>
+      <CriteriaCompleteResults
+        criteriaFinalResult={criteriaFinalResult}
+        criteriaDraftResult={criteriaDraftResult}
+      />
+      <CompletionSummary
+        storyFinalResult={storyFinalResult}
+        criteriaFinalResult={criteriaFinalResult}
+      />
+      <CompletionExport
+        confirmedStory={confirmedStory}
+        confirmedCriteria={confirmedCriteria}
+      />
+
+      {achievements.length > 0 && (
+        <div className="mb-8">
+          <Achievements achievements={achievements} />
+        </div>
+      )}
+
+      <StartNewStoryButton handleStartNew={handleStartNew} />
+    </>
+  );
+}
+
+function HistorySection({
+  storyHistory,
+  handleRemoveHistoryItem,
+  handleClearHistory,
+  handleLoadStoryFromHistory,
+  handleLoadCriteriaFromHistory,
+}) {
+  if (storyHistory.length === 0) return null;
+
+  return (
+    <div id="session-history" className="mb-8">
+      <StoryHistory
+        stories={storyHistory}
+        onRemoveStory={handleRemoveHistoryItem}
+        onClearHistory={handleClearHistory}
+        onLoadStory={handleLoadStoryFromHistory}
+        onLoadCriteria={handleLoadCriteriaFromHistory}
+      />
+    </div>
+  );
+}
+
+function IntroSection({ phase, storyDraftResult }) {
+  if (phase !== 'story' || storyDraftResult) return null;
+
+  return (
+    <div className="dark:bg-slate-800 rounded-lg shadow-lg p-6 mt-8">
+      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">How It Works</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <div className="text-3xl mb-2">✍️</div>
+          <h3 className="font-semibold text-gray-200 mb-2">1. Write Story</h3>
+          <p className="text-sm text-gray-600">
+            Fill in the three fields to create a complete user story in agile format
+          </p>
+        </div>
+        <div>
+          <div className="text-3xl mb-2">✅</div>
+          <h3 className="font-semibold text-gray-200 mb-2">2. Add Criteria</h3>
+          <p className="text-sm text-gray-600">
+            Write acceptance criteria that define when the story is complete
+          </p>
+        </div>
+        <div>
+          <div className="text-3xl mb-2">🎯</div>
+          <h3 className="font-semibold text-gray-200 mb-2">3. Level Up</h3>
+          <p className="text-sm text-gray-600">
+            Earn XP, unlock achievements, and progress from Novice to Product Sage
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AppFooter() {
+  return (
+    <footer className="bg-white dark:bg-slate-800 mt-16 border-t border-gray-200 dark:border-gray-700">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <p className="text-center text-sm text-gray-600 dark:text-gray-300">
+          Built with React & Tailwind CSS • Helping teams write better user stories
+        </p>
+      </div>
+    </footer>
+  );
+}
+
 function App() {
   // Phase: 'story' | 'criteria' | 'complete'
   const [phase, setPhase] = useState('story');
@@ -113,9 +825,7 @@ function App() {
     setConfirmedStory(null);
     setStoryFinalResult(null);
 
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 100);
+    scrollToPageBottom();
   };
 
   const handleImproveStoryWithAI = async () => {
@@ -164,9 +874,7 @@ function App() {
     setCriteriaFinalResult(null);
     setCriteriaAISuggestion(null);
     setPhase('criteria');
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 100);
+    scrollToPageBottom();
   };
 
   // ── Criteria draft scoring ────────────────────────────────────────────────
@@ -181,9 +889,7 @@ function App() {
     setConfirmedCriteria(null);
     setCriteriaFinalResult(null);
 
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 100);
+    scrollToPageBottom();
   };
 
   const handleImproveCriteriaWithAI = async () => {
@@ -191,19 +897,10 @@ function App() {
     setCriteriaAILoading(true);
     setCriteriaAIError(null);
     try {
-      const suggestion = await improveCriteriaWithAI({
-        criteria: criteriaDraftInput?.criteria,
-        format: criteriaDraftInput?.format,
-        draftScore: criteriaDraftResult?.totalScore,
-        breakdown: criteriaDraftResult?.breakdown,
-        hintTargets: criteriaDraftResult?.hintTargets,
-        story: confirmedStory,
-        apiKey: aiApiKey,
-      });
-      setCriteriaAISuggestion({
-        ...suggestion,
-        suggestions: (suggestion?.suggestions || []).map(item => ({ ...item, applied: false })),
-      });
+      const suggestion = await improveCriteriaWithAI(
+        buildImproveCriteriaRequest(criteriaDraftInput, criteriaDraftResult, confirmedStory, aiApiKey),
+      );
+      setCriteriaAISuggestion(markCriteriaSuggestionsPending(suggestion));
     } catch (err) {
       setCriteriaAIError(err?.message ?? 'AI improvement failed.');
     } finally {
@@ -230,26 +927,12 @@ function App() {
     const suggestion = criteriaAISuggestion?.suggestions?.[suggestionIndex];
     if (!suggestion || suggestion.applied || !criteriaDraftInput?.criteria) return;
 
-    const currentCriteria = [...criteriaDraftInput.criteria];
-    const originalNormalized = (suggestion.original || '').trim();
+    const updatedCriteriaData = buildAppliedCriteriaData(criteriaDraftInput, suggestion, suggestionIndex);
+    if (!updatedCriteriaData) return;
 
-    let targetIndex = currentCriteria.findIndex(c => (c || '').trim() === originalNormalized);
-    if (targetIndex < 0 && suggestionIndex < currentCriteria.length) {
-      targetIndex = suggestionIndex;
-    }
-    if (targetIndex < 0) return;
-
-    currentCriteria[targetIndex] = suggestion.improved;
-
-    setInitialCriteriaData({
-      criteria: currentCriteria,
-      format: criteriaDraftInput?.format ?? 'gherkin',
-    });
+    setInitialCriteriaData(updatedCriteriaData);
     setCriteriaFormVersion(prev => prev + 1);
-    setCriteriaDraftInput({
-      criteria: currentCriteria,
-      format: criteriaDraftInput?.format ?? 'gherkin',
-    });
+    setCriteriaDraftInput(updatedCriteriaData);
 
     setCriteriaAISuggestion(prev => {
       if (!prev?.suggestions) return null;
@@ -313,9 +996,7 @@ function App() {
     setStoryHistory(prev => [...prev, entry]);
 
     setPhase('complete');
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }, 100);
+      scrollToPageBottom();
   };
 
   // ── Navigation helpers ────────────────────────────────────────────────────
@@ -346,28 +1027,14 @@ function App() {
 
   const handleLoadStoryFromHistory = (story) => {
     handleStartNew();
-    setInitialStoryData({
-      asA: story.asA || '',
-      iWant: story.iWant || '',
-      soThat: story.soThat || '',
-    });
+    setInitialStoryData(getStoryFields(story));
     setStoryFormVersion(prev => prev + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLoadCriteriaFromHistory = (story) => {
-    // Preserve active story/scoring context when user is already in-progress.
-    // Only hydrate story context from history if no current story context exists.
-    const hasActiveStoryContext = Boolean(
-      confirmedStory || storyFinalResult || storyDraftInput || storyDraftResult,
-    );
-
-    if (!hasActiveStoryContext) {
-      const storyObj = {
-        asA: story.asA || '',
-        iWant: story.iWant || '',
-        soThat: story.soThat || '',
-      };
+    if (shouldHydrateStoryFromHistory({ confirmedStory, storyFinalResult, storyDraftInput, storyDraftResult })) {
+      const storyObj = getStoryFields(story);
       setConfirmedStory(storyObj);
       setStoryDraftInput(storyObj);
       setStoryFinalResult({ totalScore: story.storyScore ?? 0, breakdown: {}, wordCount: 0 });
@@ -400,170 +1067,14 @@ function App() {
     setStoryHistory([]);
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  // Story AI suggestion panel (shown after AI improves story)
-  const renderStoryAISuggestion = () => {
-    if (!storyAISuggestion) return null;
-    const { issues, suggestion, rationale } = storyAISuggestion;
-    return (
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
-        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">🤖 AI Suggestion</h4>
-        {issues?.length > 0 && (
-          <div className="mb-3">
-            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Issues found:</p>
-            <ul className="list-disc list-inside text-sm text-blue-700 dark:text-blue-300 space-y-1">
-              {issues.map((issue, i) => <li key={i}>{issue}</li>)}
-            </ul>
-          </div>
-        )}
-        {suggestion && (
-          <div className="mb-3 bg-white dark:bg-slate-800 rounded p-3 text-sm space-y-1">
-            <p><span className="font-medium">As a:</span> {suggestion.asA}</p>
-            <p><span className="font-medium">I want:</span> {suggestion.iWant}</p>
-            <p><span className="font-medium">So that:</span> {suggestion.soThat}</p>
-          </div>
-        )}
-        {rationale?.length > 0 && (
-          <div className="mb-3">
-            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Why this helps:</p>
-            <ul className="list-disc list-inside text-xs text-blue-600 dark:text-blue-400 space-y-1">
-              {rationale.map((r, i) => <li key={i}><strong>{r.criterion}:</strong> {r.reason}</li>)}
-            </ul>
-          </div>
-        )}
-        <div className="flex gap-2">
-          {suggestion && (
-            <button
-              onClick={handleApplyStorySuggestion}
-              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Apply Suggestion
-            </button>
-          )}
-          <button
-            onClick={() => setStoryAISuggestion(null)}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-300"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Criteria AI suggestion panel
-  const renderCriteriaAISuggestion = () => {
-    if (!criteriaAISuggestion) return null;
-    const { suggestions, guidance } = criteriaAISuggestion;
-    return (
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
-        <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">🤖 AI Suggestion</h4>
-        {suggestions?.length > 0 && (
-          <div className="mb-3 space-y-2">
-            {suggestions.map((s, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded p-3 text-sm">
-                <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Original:</p>
-                <p className="mb-2 text-gray-700 dark:text-gray-300">{s.original}</p>
-                <p className="text-blue-600 dark:text-blue-400 text-xs mb-1">Improved:</p>
-                <p className="text-blue-800 dark:text-blue-200">{s.improved}</p>
-                <div className="mt-3">
-                  <button
-                    onClick={() => handleApplySingleCriteriaSuggestion(i)}
-                    disabled={Boolean(s.applied)}
-                    className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                      s.applied
-                        ? 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    {s.applied ? 'Applied' : 'Apply Suggestion'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {guidance?.length > 0 && (
-          <div className="mb-3">
-            <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Guidance:</p>
-            <ul className="list-disc list-inside text-xs text-blue-600 dark:text-blue-400 space-y-1">
-              {guidance.map((g, i) => <li key={i}>{g}</li>)}
-            </ul>
-          </div>
-        )}
-        <div className="flex gap-2">
-          {suggestions?.length > 0 && (
-            <button
-              onClick={handleApplyCriteriaSuggestion}
-              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Apply All Suggestions
-            </button>
-          )}
-          <button
-            onClick={() => setCriteriaAISuggestion(null)}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-gray-300"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Renders a draft→final score delta line
-  const renderScoreDelta = (draftScore, finalScore) => {
-    if (draftScore == null) return null;
-    const delta = finalScore - draftScore;
-    return (
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Draft: {draftScore} → Final: {finalScore}
-        {delta !== 0 && (
-          <span className={delta > 0 ? ' text-green-500 ml-1' : ' text-red-500 ml-1'}>
-            ({delta > 0 ? '+' : ''}{delta})
-          </span>
-        )}
-      </p>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                📖 Agile Story Builder
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
-                Learn to write better user stories through gamified practice
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              {storyHistory.length > 0 && (
-                <button
-                  onClick={() => document.getElementById('session-history')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  📜 Session History ({storyHistory.length})
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
+      <AppHeader storyHistoryLength={storyHistory.length} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Progress Bar */}
         <div className="mb-8">
           <ProgressBar totalXP={totalXP} allAchievements={allAchievements} />
         </div>
 
-        {/* AI Access Panel */}
         <AIAccessPanel
           aiEnabled={aiEnabled}
           aiStatus={aiStatus}
@@ -572,294 +1083,75 @@ function App() {
           onDisable={handleDisableAI}
         />
 
-        {/* ── Phase 1: Story ── */}
-        {phase === 'story' && (
-          <div className="mb-8">
-            {/* Story form – visible until the story is confirmed and final-scored */}
-            {!confirmedStory && (
-              <StoryForm
-                key={storyFormVersion}
-                onSubmit={handleScoreDraftStory}
-                initialStory={initialStoryData}
-              />
-            )}
+        <StoryPhaseSection
+          phase={phase}
+          confirmedStory={confirmedStory}
+          storyFormVersion={storyFormVersion}
+          handleScoreDraftStory={handleScoreDraftStory}
+          initialStoryData={initialStoryData}
+          storyDraftResult={storyDraftResult}
+          storyAISuggestion={storyAISuggestion}
+          handleApplyStorySuggestion={handleApplyStorySuggestion}
+          setStoryAISuggestion={setStoryAISuggestion}
+          storyAIError={storyAIError}
+          aiEnabled={aiEnabled}
+          handleImproveStoryWithAI={handleImproveStoryWithAI}
+          storyAILoading={storyAILoading}
+          handleConfirmStory={handleConfirmStory}
+          handleScoreFinalStory={handleScoreFinalStory}
+          storyFinalResult={storyFinalResult}
+        />
 
-            {/* Draft score results */}
-            {storyDraftResult && !confirmedStory && (
-              <div className="mt-6">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-                  📝 Draft Story Score
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                  <ScoreBreakdown result={storyDraftResult} />
-                  <FeedbackPanel result={storyDraftResult} />
-                </div>
+        <StoryFinalSection
+          storyFinalResult={storyFinalResult}
+          phase={phase}
+          storyDraftResult={storyDraftResult}
+        />
 
-                {/* AI suggestion panel */}
-                {renderStoryAISuggestion()}
+        <CriteriaPhaseSection
+          phase={phase}
+          confirmedStory={confirmedStory}
+          confirmedCriteria={confirmedCriteria}
+          criteriaFormVersion={criteriaFormVersion}
+          handleScoreDraftCriteria={handleScoreDraftCriteria}
+          initialCriteriaData={initialCriteriaData}
+          criteriaDraftResult={criteriaDraftResult}
+          criteriaAISuggestion={criteriaAISuggestion}
+          handleApplyCriteriaSuggestion={handleApplyCriteriaSuggestion}
+          handleApplySingleCriteriaSuggestion={handleApplySingleCriteriaSuggestion}
+          setCriteriaAISuggestion={setCriteriaAISuggestion}
+          criteriaAIError={criteriaAIError}
+          aiEnabled={aiEnabled}
+          handleImproveCriteriaWithAI={handleImproveCriteriaWithAI}
+          criteriaAILoading={criteriaAILoading}
+          handleConfirmCriteria={handleConfirmCriteria}
+          handleScoreFinalCriteria={handleScoreFinalCriteria}
+          criteriaFinalResult={criteriaFinalResult}
+        />
 
-                {/* AI error */}
-                {storyAIError && (
-                  <p role="alert" className="text-sm text-red-600 dark:text-red-400 mb-3">
-                    ⚠ {storyAIError}
-                  </p>
-                )}
+        <CompletePhaseSection
+          phase={phase}
+          criteriaFinalResult={criteriaFinalResult}
+          criteriaDraftResult={criteriaDraftResult}
+          storyFinalResult={storyFinalResult}
+          confirmedStory={confirmedStory}
+          confirmedCriteria={confirmedCriteria}
+          achievements={achievements}
+          handleStartNew={handleStartNew}
+        />
 
-                {/* Action buttons */}
-                <div className="flex flex-wrap gap-3">
-                  {aiEnabled && !storyAISuggestion && (
-                    <button
-                      onClick={handleImproveStoryWithAI}
-                      disabled={storyAILoading}
-                      className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
-                    >
-                      {storyAILoading ? '⏳ Improving…' : '✨ Improve with AI'}
-                    </button>
-                  )}
-                  {!aiEnabled && (
-                    <button
-                      disabled
-                      title="Enable AI in the panel above to use this feature"
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md cursor-not-allowed"
-                    >
-                      ✨ Improve with AI
-                    </button>
-                  )}
-                  <button
-                    onClick={handleConfirmStory}
-                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    ✅ Confirm Story
-                  </button>
-                </div>
-              </div>
-            )}
+        <HistorySection
+          storyHistory={storyHistory}
+          handleRemoveHistoryItem={handleRemoveHistoryItem}
+          handleClearHistory={handleClearHistory}
+          handleLoadStoryFromHistory={handleLoadStoryFromHistory}
+          handleLoadCriteriaFromHistory={handleLoadCriteriaFromHistory}
+        />
 
-            {/* Confirmed story + final score button */}
-            {confirmedStory && !storyFinalResult && (
-              <div className="mt-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
-                <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                  ✅ Story Confirmed
-                </h3>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-1">
-                  <span className="font-medium">As a:</span> {confirmedStory.asA}
-                </p>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-1">
-                  <span className="font-medium">I want:</span> {confirmedStory.iWant}
-                </p>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-4">
-                  <span className="font-medium">So that:</span> {confirmedStory.soThat}
-                </p>
-                <button
-                  onClick={handleScoreFinalStory}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  🎯 Calculate Final Story Score
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Story final score (shown in criteria + complete phases) */}
-        {storyFinalResult && phase !== 'story' && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-200 mb-1">📝 Your Story Score</h2>
-            {storyDraftResult && renderScoreDelta(storyDraftResult.totalScore, storyFinalResult.totalScore)}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ScoreBreakdown result={storyFinalResult} />
-              <FeedbackPanel result={storyFinalResult} />
-            </div>
-          </div>
-        )}
-
-        {/* ── Phase 2: Criteria ── */}
-        {phase === 'criteria' && confirmedStory && (
-          <div className="mb-8">
-            {!confirmedCriteria && (
-              <AcceptanceCriteriaForm
-                key={criteriaFormVersion}
-                onSubmit={handleScoreDraftCriteria}
-                storyText={`As a ${confirmedStory.asA}, I want ${confirmedStory.iWant} so that ${confirmedStory.soThat}.`}
-                initialCriteriaData={initialCriteriaData}
-              />
-            )}
-
-            {/* Criteria draft score results */}
-            {criteriaDraftResult && !confirmedCriteria && (
-              <div className="mt-6">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">
-                  ✅ Draft Criteria Score
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                  <CriteriaScoreBreakdown result={criteriaDraftResult} />
-                  <CriteriaFeedbackPanel result={criteriaDraftResult} />
-                </div>
-
-                {renderCriteriaAISuggestion()}
-
-                {criteriaAIError && (
-                  <p role="alert" className="text-sm text-red-600 dark:text-red-400 mb-3">
-                    ⚠ {criteriaAIError}
-                  </p>
-                )}
-
-                <div className="flex flex-wrap gap-3">
-                  {aiEnabled && !criteriaAISuggestion && (
-                    <button
-                      onClick={handleImproveCriteriaWithAI}
-                      disabled={criteriaAILoading}
-                      className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
-                    >
-                      {criteriaAILoading ? '⏳ Improving…' : '✨ Improve Criteria with AI'}
-                    </button>
-                  )}
-                  {!aiEnabled && (
-                    <button
-                      disabled
-                      title="Enable AI in the panel above to use this feature"
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-md cursor-not-allowed"
-                    >
-                      ✨ Improve Criteria with AI
-                    </button>
-                  )}
-                  <button
-                    onClick={handleConfirmCriteria}
-                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    ✅ Confirm Criteria
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Confirmed criteria + final score button */}
-            {confirmedCriteria && !criteriaFinalResult && (
-              <div className="mt-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
-                <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                  ✅ Criteria Confirmed ({confirmedCriteria.criteria.length} criteria)
-                </h3>
-                <ul className="list-disc list-inside text-sm text-green-700 dark:text-green-300 mb-4 space-y-1">
-                  {confirmedCriteria.criteria.map((c, i) => (
-                    <li key={i} className="truncate">{c}</li>
-                  ))}
-                </ul>
-                <button
-                  onClick={handleScoreFinalCriteria}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  🎯 Calculate Final Criteria Score
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Phase 3: Complete ── */}
-        {criteriaFinalResult && phase === 'complete' && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-1">
-              ✅ Your Criteria Score
-            </h2>
-            {criteriaDraftResult && renderScoreDelta(criteriaDraftResult.totalScore, criteriaFinalResult.totalScore)}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CriteriaScoreBreakdown result={criteriaFinalResult} />
-              <CriteriaFeedbackPanel result={criteriaFinalResult} />
-            </div>
-          </div>
-        )}
-
-        {/* Combined Score Summary – uses final scores only */}
-        {phase === 'complete' && storyFinalResult && criteriaFinalResult && (
-          <div className="mb-8">
-            <CombinedScoreSummary
-              storyScore={storyFinalResult.totalScore}
-              criteriaScore={criteriaFinalResult.totalScore}
-            />
-          </div>
-        )}
-
-        {/* Export Section */}
-        {phase === 'complete' && confirmedStory && confirmedCriteria && (
-          <div className="mb-8">
-            <StoryAndCriteriaExport
-              story={confirmedStory}
-              criteria={confirmedCriteria.criteria}
-            />
-          </div>
-        )}
-
-        {/* Achievements */}
-        {achievements.length > 0 && (
-          <div className="mb-8">
-            <Achievements achievements={achievements} />
-          </div>
-        )}
-
-        {/* Start New Button */}
-        {phase === 'complete' && (
-          <div className="mb-8">
-            <button
-              onClick={handleStartNew}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
-            >
-              ✨ Start New Story
-            </button>
-          </div>
-        )}
-
-        {/* Story History */}
-        {storyHistory.length > 0 && (
-          <div id="session-history" className="mb-8">
-            <StoryHistory
-              stories={storyHistory}
-              onRemoveStory={handleRemoveHistoryItem}
-              onClearHistory={handleClearHistory}
-              onLoadStory={handleLoadStoryFromHistory}
-              onLoadCriteria={handleLoadCriteriaFromHistory}
-            />
-          </div>
-        )}
-
-        {/* Info Section */}
-        {phase === 'story' && !storyDraftResult && (
-          <div className="dark:bg-slate-800 rounded-lg shadow-lg p-6 mt-8">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">How It Works</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <div className="text-3xl mb-2">✍️</div>
-                <h3 className="font-semibold text-gray-200 mb-2">1. Write Story</h3>
-                <p className="text-sm text-gray-600">
-                  Fill in the three fields to create a complete user story in agile format
-                </p>
-              </div>
-              <div>
-                <div className="text-3xl mb-2">✅</div>
-                <h3 className="font-semibold text-gray-200 mb-2">2. Add Criteria</h3>
-                <p className="text-sm text-gray-600">
-                  Write acceptance criteria that define when the story is complete
-                </p>
-              </div>
-              <div>
-                <div className="text-3xl mb-2">🎯</div>
-                <h3 className="font-semibold text-gray-200 mb-2">3. Level Up</h3>
-                <p className="text-sm text-gray-600">
-                  Earn XP, unlock achievements, and progress from Novice to Product Sage
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        <IntroSection phase={phase} storyDraftResult={storyDraftResult} />
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white dark:bg-slate-800 mt-16 border-t border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-600 dark:text-gray-300">
-            Built with React & Tailwind CSS • Helping teams write better user stories
-          </p>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

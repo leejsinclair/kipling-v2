@@ -2,6 +2,120 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { scoreStory } from '../scoringEngine';
 import { scoreCriteria, scoreSingleCriterion } from '../criteriaScoring';
 
+function StoryDetailsModal({
+  selectedStory,
+  recalculatedScores,
+  closeModal,
+  handleModalKeyDown,
+  dialogRef,
+  closeButtonRef,
+  renderGherkinCriterion,
+  getScoreColorClass,
+  metricLabels,
+}) {
+  if (!selectedStory || !recalculatedScores) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Story details"
+      onClick={closeModal}
+      onKeyDown={handleModalKeyDown}
+    >
+      <div
+        ref={dialogRef}
+        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Story Details</h4>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={closeModal}
+            className="px-2 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+            aria-label="Close details"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Story Score (recalculated)</p>
+              <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                {recalculatedScores.storyResult.totalScore}
+              </p>
+            </div>
+            <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Criteria Score (recalculated)</p>
+              <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                {recalculatedScores.criteriaResult.totalScore}
+              </p>
+            </div>
+            <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Combined (recalculated)</p>
+              <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                {recalculatedScores.combinedTotal}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Full Story</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+              As a {selectedStory.asA}, I want {selectedStory.iWant} so that {selectedStory.soThat}.
+            </p>
+          </div>
+
+          <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Acceptance Criteria</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Format: {recalculatedScores.format}
+              </p>
+            </div>
+
+            {Array.isArray(selectedStory.criteria) && selectedStory.criteria.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {selectedStory.criteria.map((criterion, index) => (
+                  <div key={`${selectedStory.timestamp}-${index}`} className="rounded border border-gray-200 dark:border-slate-700 p-3">
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                      <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">Criterion {index + 1}</p>
+                      <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                        {recalculatedScores.perCriterionScores[index].score}/{recalculatedScores.perCriterionScores[index].maxScore} • {recalculatedScores.perCriterionScores[index].grade}
+                      </p>
+                    </div>
+                    {recalculatedScores.format === 'gherkin' ? (
+                      renderGherkinCriterion(criterion)
+                    ) : (
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{criterion}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(recalculatedScores.perCriterionScores[index].breakdown).map(([key, metric]) => (
+                        <span
+                          key={key}
+                          className={`inline-flex items-center rounded border px-2 py-1 text-xs font-semibold ${getScoreColorClass(metric.score, metric.maxScore)}`}
+                        >
+                          {metricLabels[key] || key} {metric.score}/{metric.maxScore}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">No criteria were saved for this story.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StoryHistory({
   stories,
   onLoadStory,
@@ -472,106 +586,17 @@ export default function StoryHistory({
         ))}
       </div>
 
-      {selectedStory && recalculatedScores && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Story details"
-          onClick={closeModal}
-          onKeyDown={handleModalKeyDown}
-        >
-          <div
-            ref={dialogRef}
-            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Story Details</h4>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={closeModal}
-                className="px-2 py-1 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
-                aria-label="Close details"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Story Score (recalculated)</p>
-                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-                    {recalculatedScores.storyResult.totalScore}
-                  </p>
-                </div>
-                <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Criteria Score (recalculated)</p>
-                  <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
-                    {recalculatedScores.criteriaResult.totalScore}
-                  </p>
-                </div>
-                <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Combined (recalculated)</p>
-                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
-                    {recalculatedScores.combinedTotal}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Full Story</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                  As a {selectedStory.asA}, I want {selectedStory.iWant} so that {selectedStory.soThat}.
-                </p>
-              </div>
-
-              <div className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Acceptance Criteria</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Format: {recalculatedScores.format}
-                  </p>
-                </div>
-
-                {Array.isArray(selectedStory.criteria) && selectedStory.criteria.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {selectedStory.criteria.map((criterion, index) => (
-                      <div key={`${selectedStory.timestamp}-${index}`} className="rounded border border-gray-200 dark:border-slate-700 p-3">
-                        <div className="flex items-center justify-between gap-3 mb-1">
-                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">Criterion {index + 1}</p>
-                          <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                            {recalculatedScores.perCriterionScores[index].score}/{recalculatedScores.perCriterionScores[index].maxScore} • {recalculatedScores.perCriterionScores[index].grade}
-                          </p>
-                        </div>
-                        {recalculatedScores.format === 'gherkin' ? (
-                          renderGherkinCriterion(criterion)
-                        ) : (
-                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{criterion}</p>
-                        )}
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {Object.entries(recalculatedScores.perCriterionScores[index].breakdown).map(([key, metric]) => (
-                            <span
-                              key={key}
-                              className={`inline-flex items-center rounded border px-2 py-1 text-xs font-semibold ${getScoreColorClass(metric.score, metric.maxScore)}`}
-                            >
-                              {metricLabels[key] || key} {metric.score}/{metric.maxScore}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">No criteria were saved for this story.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <StoryDetailsModal
+        selectedStory={selectedStory}
+        recalculatedScores={recalculatedScores}
+        closeModal={closeModal}
+        handleModalKeyDown={handleModalKeyDown}
+        dialogRef={dialogRef}
+        closeButtonRef={closeButtonRef}
+        renderGherkinCriterion={renderGherkinCriterion}
+        getScoreColorClass={getScoreColorClass}
+        metricLabels={metricLabels}
+      />
 
       {isExportPreviewOpen && (
         <div

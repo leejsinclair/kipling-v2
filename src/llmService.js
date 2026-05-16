@@ -19,15 +19,29 @@ import {
 
 function normalizeError(err) {
   const msg = (err?.message || '').toLowerCase();
-  if (msg.includes('invalid_api_key') || msg.includes('incorrect api key') || msg.includes('invalid key')) {
-    return { type: 'invalid_key', message: 'Invalid API key. Please check your key and try again.' };
+  const errorMatchers = [
+    {
+      type: 'invalid_key',
+      message: 'Invalid API key. Please check your key and try again.',
+      matches: ['invalid_api_key', 'incorrect api key', 'invalid key']
+    },
+    {
+      type: 'quota',
+      message: 'API quota exceeded or rate limit reached. Please try again later.',
+      matches: ['quota', 'rate limit', 'insufficient_quota']
+    },
+    {
+      type: 'network',
+      message: 'Network error. Please check your connection and try again.',
+      matches: ['network', 'failed to fetch', 'econnreset']
+    }
+  ];
+
+  const matchedError = errorMatchers.find(({ matches }) => matches.some((value) => msg.includes(value)));
+  if (matchedError) {
+    return { type: matchedError.type, message: matchedError.message };
   }
-  if (msg.includes('quota') || msg.includes('rate limit') || msg.includes('insufficient_quota')) {
-    return { type: 'quota', message: 'API quota exceeded or rate limit reached. Please try again later.' };
-  }
-  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('econnreset')) {
-    return { type: 'network', message: 'Network error. Please check your connection and try again.' };
-  }
+
   return { type: 'unknown', message: 'An unexpected error occurred. Please try again.' };
 }
 
@@ -73,9 +87,7 @@ function mockValidate(apiKey) {
  * Throws a normalized error object on failure.
  */
 export async function validateOpenAIKey(apiKey) {
-  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-    throw { type: 'invalid_key', message: 'No API key provided.' };
-  }
+  ensureApiKey(apiKey);
 
   if (isMockKey(apiKey)) {
     mockValidate(apiKey); // may throw
@@ -83,20 +95,10 @@ export async function validateOpenAIKey(apiKey) {
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/models', {
+    await fetchOpenAIJson('https://api.openai.com/v1/models', {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      apiKey,
     });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      const errMsg = body?.error?.message || response.statusText || 'unknown error';
-      throw new Error(errMsg);
-    }
-
     return { valid: true };
   } catch (err) {
     throw normalizeError(err);
@@ -350,26 +352,37 @@ function buildCriteriaFocusTips({ format, breakdown }) {
   }
 
   const tips = [];
+  const tipRules = [
+    {
+      shouldAdd: (scores) => (scores.format ?? 0) < 8,
+      message:
+        format === 'gherkin'
+          ? '- Format is weak: use complete Given/When/Then sequences and use And only to extend a step.'
+          : '- Format is weak: start criteria with clear ownership (for example, "The system..." or "The user...").'
+    },
+    {
+      shouldAdd: (scores) => (scores.testability ?? 0) < 10,
+      message: '- Testability is weak: specify observable outcomes (status, message, redirect, audit event, API response).'
+    },
+    {
+      shouldAdd: (scores) => (scores.specificity ?? 0) < 8,
+      message: '- Specificity is weak: replace vague words with concrete actors, actions, data, and expected results.'
+    },
+    {
+      shouldAdd: (scores) => (scores.alignment ?? 0) < 8,
+      message: '- Alignment is weak: tie each criterion to the story value and ensure outcomes support that value.'
+    },
+    {
+      shouldAdd: (scores) => (scores.completeness ?? 0) < 8,
+      message: '- Completeness is weak: cover happy path, validation/error path, and side effects (notifications/audit).'
+    }
+  ];
 
-  if ((breakdown.format ?? 0) < 8) {
-    tips.push(
-      format === 'gherkin'
-        ? '- Format is weak: use complete Given/When/Then sequences and use And only to extend a step.'
-        : '- Format is weak: start criteria with clear ownership (for example, "The system..." or "The user...").',
-    );
-  }
-  if ((breakdown.testability ?? 0) < 10) {
-    tips.push('- Testability is weak: specify observable outcomes (status, message, redirect, audit event, API response).');
-  }
-  if ((breakdown.specificity ?? 0) < 8) {
-    tips.push('- Specificity is weak: replace vague words with concrete actors, actions, data, and expected results.');
-  }
-  if ((breakdown.alignment ?? 0) < 8) {
-    tips.push('- Alignment is weak: tie each criterion to the story value and ensure outcomes support that value.');
-  }
-  if ((breakdown.completeness ?? 0) < 8) {
-    tips.push('- Completeness is weak: cover happy path, validation/error path, and side effects (notifications/audit).');
-  }
+  tipRules.forEach(({ shouldAdd, message }) => {
+    if (shouldAdd(breakdown)) {
+      tips.push(message);
+    }
+  });
 
   if (tips.length === 0) {
     tips.push('- Preserve strengths and provide only high-impact refinements.');
@@ -381,12 +394,12 @@ function buildCriteriaFocusTips({ format, breakdown }) {
 
 function buildCriteriaScoringTargets({ breakdown, format }) {
   const b = breakdown || {};
-  const formatMax = String(format || '').toLowerCase() === 'gherkin' ? 5 : 4;
+  const formatMax = getCriteriaFormatMaxScore(format);
   const targets = [
-    `- Format: current ${b.format ?? 0}/${formatMax}, target >= ${Math.min(formatMax, (b.format ?? 0) < formatMax ? (b.format ?? 0) + 1 : formatMax)}/${formatMax}`,
-    `- Testability: current ${b.testability ?? 0}/3, target >= ${Math.min(3, (b.testability ?? 0) + 1)}/3`,
-    `- Specificity: current ${b.specificity ?? 0}/3, target >= ${Math.min(3, (b.specificity ?? 0) + 1)}/3`,
-    `- Alignment: current ${b.alignment ?? 0}/2, target >= ${Math.min(2, (b.alignment ?? 0) + 1)}/2`,
+    `- Format: current ${b.format ?? 0}/${formatMax}, target >= ${getRaisedTarget(b.format, formatMax)}/${formatMax}`,
+    `- Testability: current ${b.testability ?? 0}/3, target >= ${getRaisedTarget(b.testability, 3)}/3`,
+    `- Specificity: current ${b.specificity ?? 0}/3, target >= ${getRaisedTarget(b.specificity, 3)}/3`,
+    `- Alignment: current ${b.alignment ?? 0}/2, target >= ${getRaisedTarget(b.alignment, 2)}/2`,
   ];
 
   return targets.join('\n');
@@ -438,13 +451,8 @@ function parseJSONContent(text) {
 function isValidStoryPayload(value) {
   if (!value || typeof value !== 'object') return false;
   if (!Array.isArray(value.issues) || value.issues.length === 0) return false;
-  if (!value.suggestion || typeof value.suggestion !== 'object') return false;
-  const { asA, iWant, soThat } = value.suggestion;
-  if (!isNonEmptyString(asA) || !isNonEmptyString(iWant) || !isNonEmptyString(soThat)) return false;
-  if (!Array.isArray(value.rationale) || value.rationale.length === 0) return false;
-  return value.rationale.every(item => (
-    item && typeof item === 'object' && isNonEmptyString(item.criterion) && isNonEmptyString(item.reason)
-  ));
+  if (!isValidStorySuggestion(value.suggestion)) return false;
+  return Array.isArray(value.rationale) && value.rationale.length > 0 && value.rationale.every(isValidRationaleItem);
 }
 
 function isValidCriteriaPayload(value) {
@@ -485,29 +493,9 @@ function filterCriteriaSuggestions(suggestions, { criteria, format }) {
   const validSuggestions = [];
 
   for (const suggestion of suggestions || []) {
-    const original = suggestion?.original || '';
-    const improved = suggestion?.improved || '';
-
-    if (!isNonEmptyString(original) || !isNonEmptyString(improved)) continue;
-
-    // Enforce richer structure for Gherkin so the model doesn't collapse to Then-only lines.
-    if (isGherkin) {
-      const originalLower = original.trim().toLowerCase();
-      const originalNormalized = normalizeCriteriaTextForMatch(originalLower);
-
-      if (/^then\b/i.test(original.trim()) || /^then\b/i.test(improved.trim())) continue;
-
-      const hasGiven = /\bgiven\b/i.test(improved);
-      const hasWhen = /\bwhen\b/i.test(improved);
-      const hasThen = /\bthen\b/i.test(improved);
-      if (!(hasGiven && hasWhen && hasThen)) continue;
-
-      const matchedToSource = sourceCriteriaNormalized.some(src => (
-        src.includes(originalNormalized) || originalNormalized.includes(src)
-      ));
-      if (!matchedToSource) continue;
-
-      if (original.split(/\s+/).length < 8 || improved.split(/\s+/).length < 12) continue;
+    if (!isValidSuggestionShape(suggestion)) continue;
+    if (isGherkin && !isValidGherkinSuggestion(suggestion, sourceCriteriaNormalized)) {
+      continue;
     }
 
     validSuggestions.push(suggestion);
@@ -544,17 +532,7 @@ function buildStoryFallback(story, breakdown) {
   const asA = story?.asA || 'user';
   const iWant = story?.iWant || 'to complete a clearly defined task';
   const soThat = story?.soThat || 'I can achieve a measurable business outcome';
-  const issues = [];
-
-  if (typeof asA === 'string' && asA.trim().split(/\s+/).length < 2) {
-    issues.push('Persona is too generic; add role context and responsibility.');
-  }
-  if (typeof soThat === 'string' && !/\d|percent|%|time|cost|revenue|conversion|speed|quality/i.test(soThat)) {
-    issues.push('Value statement is not measurable; add a concrete metric or target.');
-  }
-  if (issues.length === 0) {
-    issues.push('Clarify the user outcome with more specific scope and measurable impact.');
-  }
+  const issues = buildFallbackIssues(asA, soThat);
 
   return {
     issues,
@@ -563,19 +541,7 @@ function buildStoryFallback(story, breakdown) {
       iWant: String(iWant).trim(),
       soThat: String(soThat).trim(),
     },
-    rationale: [
-      {
-        criterion: 'clarity',
-        reason: 'Fallback keeps concrete language and avoids placeholder output when AI response is malformed.',
-      },
-      {
-        criterion: 'soThatQuality',
-        reason: 'Improvement guidance emphasizes measurable business outcomes.',
-      },
-      ...(breakdown?.length != null && breakdown.length < 8
-        ? [{ criterion: 'length', reason: 'Add context to reach a more informative story length band.' }]
-        : []),
-    ],
+    rationale: buildFallbackRationale(breakdown),
   };
 }
 
@@ -600,4 +566,166 @@ function buildCriteriaFallback(criteria, format) {
       'State outcomes as observable UI or API behavior.',
     ],
   };
+}
+
+/**
+ * Validates that an API key value is present before making a request.
+ * @param {string} apiKey
+ * @throws {{type: string, message: string}}
+ */
+function ensureApiKey(apiKey) {
+  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+    throw { type: 'invalid_key', message: 'No API key provided.' };
+  }
+}
+
+/**
+ * Calls the OpenAI API and returns parsed JSON or throws the API error message.
+ * @param {string} url
+ * @param {{apiKey: string, method?: string, body?: object}} options
+ * @returns {Promise<any>}
+ */
+async function fetchOpenAIJson(url, { apiKey, method = 'POST', body }) {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const errMsg = payload?.error?.message || response.statusText || 'unknown error';
+    throw new Error(errMsg);
+  }
+
+  return response.json().catch(() => ({}));
+}
+
+/**
+ * Returns the format scoring ceiling for criteria prompts.
+ * @param {string} format
+ * @returns {number}
+ */
+function getCriteriaFormatMaxScore(format) {
+  return String(format || '').toLowerCase() === 'gherkin' ? 5 : 4;
+}
+
+/**
+ * Raises a current score target by one step without exceeding the maximum.
+ * @param {number | undefined} currentValue
+ * @param {number} maxValue
+ * @returns {number}
+ */
+function getRaisedTarget(currentValue, maxValue) {
+  const score = currentValue ?? 0;
+  return Math.min(maxValue, score < maxValue ? score + 1 : maxValue);
+}
+
+/**
+ * Validates the parsed story suggestion payload shape.
+ * @param {any} suggestion
+ * @returns {boolean}
+ */
+function isValidStorySuggestion(suggestion) {
+  if (!suggestion || typeof suggestion !== 'object') return false;
+  const { asA, iWant, soThat } = suggestion;
+  return isNonEmptyString(asA) && isNonEmptyString(iWant) && isNonEmptyString(soThat);
+}
+
+/**
+ * Validates one rationale entry in an AI story payload.
+ * @param {any} item
+ * @returns {boolean}
+ */
+function isValidRationaleItem(item) {
+  return item && typeof item === 'object' && isNonEmptyString(item.criterion) && isNonEmptyString(item.reason);
+}
+
+/**
+ * Validates that a criteria suggestion includes non-empty original and improved text.
+ * @param {any} suggestion
+ * @returns {boolean}
+ */
+function isValidSuggestionShape(suggestion) {
+  return (
+    suggestion &&
+    typeof suggestion === 'object' &&
+    isNonEmptyString(suggestion.original) &&
+    isNonEmptyString(suggestion.improved)
+  );
+}
+
+/**
+ * Validates the stricter Gherkin suggestion requirements used to reject degraded AI output.
+ * @param {{original: string, improved: string}} suggestion
+ * @param {string[]} sourceCriteriaNormalized
+ * @returns {boolean}
+ */
+function isValidGherkinSuggestion(suggestion, sourceCriteriaNormalized) {
+  const original = suggestion.original.trim();
+  const improved = suggestion.improved.trim();
+  const originalNormalized = normalizeCriteriaTextForMatch(original.toLowerCase());
+  const hasCompleteStructure = ['given', 'when', 'then'].every((keyword) => new RegExp(`\\b${keyword}\\b`, 'i').test(improved));
+  const matchedToSource = sourceCriteriaNormalized.some((source) => (
+    source.includes(originalNormalized) || originalNormalized.includes(source)
+  ));
+
+  if (/^then\b/i.test(original) || /^then\b/i.test(improved)) return false;
+  if (!hasCompleteStructure) return false;
+  if (!matchedToSource) return false;
+  return original.split(/\s+/).length >= 8 && improved.split(/\s+/).length >= 12;
+}
+
+/**
+ * Builds fallback issue messages when story improvement output must be synthesized locally.
+ * @param {string} asA
+ * @param {string} soThat
+ * @returns {string[]}
+ */
+function buildFallbackIssues(asA, soThat) {
+  const issues = [];
+
+  if (typeof asA === 'string' && asA.trim().split(/\s+/).length < 2) {
+    issues.push('Persona is too generic; add role context and responsibility.');
+  }
+
+  if (typeof soThat === 'string' && !/\d|percent|%|time|cost|revenue|conversion|speed|quality/i.test(soThat)) {
+    issues.push('Value statement is not measurable; add a concrete metric or target.');
+  }
+
+  if (issues.length === 0) {
+    issues.push('Clarify the user outcome with more specific scope and measurable impact.');
+  }
+
+  return issues;
+}
+
+/**
+ * Builds fallback rationale entries for synthesized story improvement output.
+ * @param {object} breakdown
+ * @returns {{criterion: string, reason: string}[]}
+ */
+function buildFallbackRationale(breakdown) {
+  const rationale = [
+    {
+      criterion: 'clarity',
+      reason: 'Fallback keeps concrete language and avoids placeholder output when AI response is malformed.',
+    },
+    {
+      criterion: 'soThatQuality',
+      reason: 'Improvement guidance emphasizes measurable business outcomes.',
+    },
+  ];
+
+  if (breakdown?.length != null && breakdown.length < 8) {
+    rationale.push({
+      criterion: 'length',
+      reason: 'Add context to reach a more informative story length band.',
+    });
+  }
+
+  return rationale;
 }

@@ -48,6 +48,69 @@ const VALUE_VERB_GROUPS = {
   prevent: ['prevent', 'avoid', 'block'],
 };
 
+const EMPTY_CRITERIA_RESULT = {
+  totalScore: 0,
+  breakdown: {},
+  feedback: ['Please add at least one acceptance criterion'],
+  suggestions: []
+};
+
+const SINGLE_CRITERION_EMPTY_BREAKDOWN = {
+  format: { score: 0, maxScore: 4 },
+  testability: { score: 0, maxScore: 3 },
+  specificity: { score: 0, maxScore: 3 },
+  alignment: { score: 0, maxScore: 2 }
+};
+
+const FORMAT_HINT_RULES = [
+  {
+    shouldAdd: ({ breakdown }) => (breakdown.testability ?? 0) < 10,
+    message: 'Use observable outcomes in Then steps: status code, UI message, redirect, audit log, or notification.'
+  },
+  {
+    shouldAdd: ({ breakdown }) => (breakdown.specificity ?? 0) < 8,
+    message: 'Use concrete actors, actions, and data values. Avoid vague verbs like "responds" without explicit result details.'
+  },
+  {
+    shouldAdd: ({ breakdown, storyValue }) => (breakdown.alignment ?? 0) < 8 && Boolean(storyValue),
+    message: 'Reuse key value words from the story "So that" statement (for example reduce/increase/improve and the target metric/domain term).'
+  },
+  {
+    shouldAdd: ({ selectedFormat }) => selectedFormat === 'gherkin',
+    message: 'Keep each criterion focused on one primary behavior/outcome. Split overloaded criteria into smaller Given/When/Then criteria.'
+  },
+  {
+    shouldAdd: ({ criteriaCount }) => criteriaCount < 3,
+    message: 'Add at least one additional criterion to cover validation/error behavior.'
+  }
+];
+
+/**
+ * Creates the default empty single-criterion rating payload.
+ * @returns {{score: number, grade: string, color: string, feedback: string, maxScore: number, breakdown: object}}
+ */
+function createEmptySingleCriterionRating() {
+  return {
+    score: 0,
+    grade: '',
+    color: '',
+    feedback: '',
+    maxScore: 10,
+    breakdown: SINGLE_CRITERION_EMPTY_BREAKDOWN
+  };
+}
+
+/**
+ * Adds feedback only once so refactored scorers can compose messages safely.
+ * @param {string[]} target
+ * @param {string} message
+ */
+function addUniqueMessage(target, message) {
+  if (message && !target.includes(message)) {
+    target.push(message);
+  }
+}
+
 /**
  * Score acceptance criteria
  * @param {Array<string>} criteria - Array of acceptance criteria strings
@@ -57,83 +120,19 @@ const VALUE_VERB_GROUPS = {
  */
 export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherkin') {
   if (!criteria || criteria.length === 0) {
-    return {
-      totalScore: 0,
-      breakdown: {},
-      feedback: ['Please add at least one acceptance criterion'],
-      suggestions: []
-    };
+    return EMPTY_CRITERIA_RESULT;
   }
 
-  let totalScore;
-  const breakdown = {};
-  const feedback = [];
-  const suggestions = [];
-
-  // Score each category
-  breakdown.format = scoreFormat(criteria, selectedFormat);
-  breakdown.testability = scoreTestability(criteria);
-  breakdown.specificity = scoreSpecificity(criteria);
-  breakdown.alignment = scoreAlignment(criteria, storyValue);
-  breakdown.completeness = scoreCompleteness(criteria, selectedFormat);
-
-  // Calculate total (max 55 points for criteria, matching story max)
-  totalScore = breakdown.format + breakdown.testability + breakdown.specificity + 
-               breakdown.alignment + breakdown.completeness;
-
-  // Generate feedback
-  if (breakdown.format >= 8) {
-    feedback.push('Excellent format! Your criteria follow a clear structure.');
-  } else if (breakdown.format < 5) {
-    if (selectedFormat === 'bullet') {
-      feedback.push('Consider starting each criterion with "The system must..." or "The user can..." for clearer criteria.');
-    } else {
-      feedback.push('Consider using Gherkin format (Given/When/Then) for clearer criteria.');
-    }
-  }
-
-  if (breakdown.testability >= 12) {
-    feedback.push('Great testability! Your criteria have clear, observable outcomes.');
-  } else if (breakdown.testability < 8) {
-    feedback.push('Make your criteria more testable with specific, observable outcomes.');
-  }
-
-  if (breakdown.specificity >= 8) {
-    feedback.push('Nice specificity! Your criteria are clear and unambiguous.');
-  } else {
-    feedback.push('Avoid vague language. Be more specific about expected behaviours.');
-  }
-
-  if (breakdown.alignment >= 8) {
-    feedback.push('Your criteria align well with the story\'s value proposition.');
-  } else if (storyValue) {
-    feedback.push('Try to align your criteria more closely with the story\'s "So that..." value.');
-  }
-
-  if (breakdown.completeness >= 8) {
-    feedback.push('Comprehensive criteria covering the full scenario.');
-  }
-
-  // Generate suggestions
-  if (breakdown.format < 8) {
-    if (selectedFormat === 'bullet') {
-      suggestions.push('Try starting each criterion with "The system must...", "The user can...", or "The page displays..."');
-    } else {
-      suggestions.push('Try using "Given [context], When [action], Then [outcome]" format');
-    }
-  }
-
-  if (breakdown.testability < 10) {
-    suggestions.push('Include observable outcomes like "system displays..." or "user can..."');
-  }
-
-  if (breakdown.specificity < 8) {
-    suggestions.push('Replace vague terms with specific, measurable criteria');
-  }
-
-  if (criteria.length < 3) {
-    suggestions.push('Consider adding more criteria to cover edge cases and variations');
-  }
+  const breakdown = {
+    format: scoreFormat(criteria, selectedFormat),
+    testability: scoreTestability(criteria),
+    specificity: scoreSpecificity(criteria),
+    alignment: scoreAlignment(criteria, storyValue),
+    completeness: scoreCompleteness(criteria, selectedFormat)
+  };
+  const totalScore = Object.values(breakdown).reduce((sum, value) => sum + value, 0);
+  const feedback = buildCriteriaFeedback(breakdown, selectedFormat, storyValue);
+  const suggestions = buildCriteriaSuggestions(breakdown, selectedFormat, criteria.length);
 
   const hintTargets = generateCriteriaHintTargets({
     criteria,
@@ -153,31 +152,11 @@ export function scoreCriteria(criteria, storyValue = '', selectedFormat = 'gherk
 }
 
 function generateCriteriaHintTargets({ criteria, storyValue, selectedFormat, breakdown }) {
-  const hints = [];
   const criteriaCount = Array.isArray(criteria) ? criteria.length : 0;
-
-  if ((breakdown.testability ?? 0) < 10) {
-    hints.push('Use observable outcomes in Then steps: status code, UI message, redirect, audit log, or notification.');
-  }
-
-  if ((breakdown.specificity ?? 0) < 8) {
-    hints.push('Use concrete actors, actions, and data values. Avoid vague verbs like "responds" without explicit result details.');
-  }
-
-  if ((breakdown.alignment ?? 0) < 8 && storyValue) {
-    hints.push('Reuse key value words from the story "So that" statement (for example reduce/increase/improve and the target metric/domain term).');
-  }
-
-  if (selectedFormat === 'gherkin') {
-    hints.push('Keep each criterion focused on one primary behavior/outcome. Split overloaded criteria into smaller Given/When/Then criteria.');
-  }
-
-  if (criteriaCount < 3) {
-    hints.push('Add at least one additional criterion to cover validation/error behavior.');
-  }
-
-  // Prioritize a compact set for readability and prompt efficiency.
-  return hints.slice(0, 5);
+  return FORMAT_HINT_RULES
+    .filter(({ shouldAdd }) => shouldAdd({ breakdown, storyValue, selectedFormat, criteriaCount }))
+    .map(({ message }) => message)
+    .slice(0, 5);
 }
 
 /**
@@ -330,48 +309,12 @@ function scoreAlignment(criteria, storyValue) {
  * Max: 10 points
  */
 function scoreCompleteness(criteria, selectedFormat = 'gherkin') {
-  let score = 0;
+  const coverage = selectedFormat === 'bullet'
+    ? getBulletCompletenessCoverage(criteria)
+    : getGherkinCompletenessCoverage(criteria);
+  const countScore = getCriteriaCountCompletenessScore(criteria.length);
 
-  if (selectedFormat === 'bullet') {
-    // For bullet format: check for behavioral coverage (must/can/displays patterns)
-    let hasMust = false;
-    let hasCan = false;
-    let hasDisplays = false;
-
-    criteria.forEach(criterion => {
-      const lower = criterion.toLowerCase();
-      if (lower.includes('must') || lower.includes('shall')) hasMust = true;
-      if (lower.includes('can') || lower.includes('able to')) hasCan = true;
-      if (lower.includes('display') || lower.includes('show') || lower.includes('appear') ||
-          lower.includes('message') || lower.includes('notification')) hasDisplays = true;
-    });
-
-    if (hasMust) score += 3;
-    if (hasCan) score += 3;
-    if (hasDisplays) score += 4;
-  } else {
-    // Gherkin: check for Given/When/Then coverage
-    let hasContext = false;
-    let hasAction = false;
-    let hasOutcome = false;
-
-    criteria.forEach(criterion => {
-      const lower = criterion.toLowerCase();
-      if (GHERKIN_KEYWORDS.given.some(kw => lower.includes(kw))) hasContext = true;
-      if (GHERKIN_KEYWORDS.when.some(kw => lower.includes(kw))) hasAction = true;
-      if (GHERKIN_KEYWORDS.then.some(kw => lower.includes(kw))) hasOutcome = true;
-    });
-
-    if (hasContext) score += 3;
-    if (hasAction) score += 3;
-    if (hasOutcome) score += 4;
-  }
-  
-  // Award points for having multiple criteria (applies to both formats)
-  if (criteria.length >= 3) score += 3;
-  if (criteria.length >= 5) score += 2;
-
-  return Math.min(10, score);
+  return Math.min(10, coverage + countScore);
 }
 
 /**
@@ -416,235 +359,440 @@ export function detectFormat(criteria) {
  */
 export function scoreSingleCriterion(criterion, format = 'gherkin', storyValue = '') {
   if (!criterion || !criterion.trim()) {
-    return { 
-      score: 0, 
-      grade: '', 
-      color: '', 
-      feedback: '', 
-      maxScore: 10,
-      breakdown: {
-        format: { score: 0, maxScore: 4 },
-        testability: { score: 0, maxScore: 3 },
-        specificity: { score: 0, maxScore: 3 },
-        alignment: { score: 0, maxScore: 2 }
-      }
-    };
+    return createEmptySingleCriterionRating();
   }
 
   const lower = criterion.toLowerCase().trim();
-  let formatScore = 0;
-  let testabilityScore = 0;
-  let specificityScore = 0;
-  let alignmentScore;
   const feedback = [];
   const wordCount = criterion.trim().split(/\s+/).length;
+  const formatResult = scoreSingleCriterionFormat(lower, format);
+  const testabilityResult = scoreSingleCriterionTestability(lower, wordCount);
+  const specificityResult = scoreSingleCriterionSpecificity(criterion, lower, wordCount);
+  const alignmentScore = scoreSingleCriterionAlignment(criterion, storyValue);
+  [formatResult.feedback, testabilityResult.feedback, specificityResult.feedback]
+    .flat()
+    .forEach((message) => addUniqueMessage(feedback, message));
 
-  // Format check (0-4 points + possible bonus)
-  if (format === 'gherkin') {
-    const hasGiven = GHERKIN_KEYWORDS.given.some(() => lower.startsWith('given') || lower.includes('\ngiven '));
-    const hasWhen = GHERKIN_KEYWORDS.when.some(() => lower.includes(' when ') || lower.startsWith('when ') || lower.includes('\nwhen '));
-    const hasThen = GHERKIN_KEYWORDS.then.some(() => lower.includes(' then ') || lower.startsWith('then ') || lower.includes('\nthen '));
-    const hasAnd = lower.includes('\nand ') || lower.includes(' and ');
-    
-    // Full Gherkin structure gets 4 points, bonus for And statements
-    if ((hasGiven && hasWhen && hasThen) || (hasWhen && hasThen)) {
-      formatScore += 4;
-      // Bonus point for complex multi-clause Gherkin (with And)
-      if (hasAnd) {
-        formatScore += 1;
-      }
-    } else if (hasGiven || hasWhen || hasThen) {
-      // Partial Gherkin: only 2 points
-      formatScore += 2;
-      feedback.push('Include Given/When/Then structure');
-    } else {
-      // Not Gherkin at all: minimal points
-      formatScore += 0;
-      feedback.push('Use Gherkin format: Given/When/Then');
-    }
-  } else {
-    // Bullet format - stricter requirement for proper prefix
-    if (lower.startsWith('the system') || lower.startsWith('the user')) {
-      formatScore += 4;
-    } else if (lower.startsWith('user can') || lower.startsWith('system must')) {
-      formatScore += 3;
-    } else {
-      // Give 1 point for effort if it has observable patterns but wrong prefix
-      const hasObservablePatterns = OBSERVABLE_PATTERNS.some(pattern => lower.includes(pattern));
-      if (hasObservablePatterns) {
-        formatScore += 1;
-      }
-      feedback.push('Start with "The system..." or "The user..."');
-    }
-  }
-
-  // Testability check (0-3 points)
-  // Check for observable patterns but exclude context-only usage
-  const contextOnlyRegex = /\b(on the page|to the page|from the (page|click))\b/i;
-  const isContextOnly = contextOnlyRegex.test(lower);
-  
-  const hasObservablePattern = OBSERVABLE_PATTERNS.some(pattern => lower.includes(pattern));
-  const hasObservable = hasObservablePattern && !isContextOnly;
-  const observablePatternCount = OBSERVABLE_PATTERNS.filter(pattern => lower.includes(pattern)).length;
-  
-  // Check word count for conciseness FIRST (to prioritize concise feedback for long text)
-  if (wordCount > 50) {
-    // Very long but has observable
-    if (hasObservable && observablePatternCount >= 3) {
-      testabilityScore += 3; // Detailed long criterion can still be highly testable
-    } else if (hasObservable) {
-      testabilityScore += 2; // Some points for having observable
-    } else {
-      testabilityScore += 1;
-    }
-  } else if (hasObservable && wordCount >= 8) {
-    testabilityScore += 3; // Full testability points for detailed observable  
-  } else if (hasObservable && wordCount >= 5) {
-    testabilityScore += 2; // Has observable but could be more detailed
-  } else if (hasObservable) {
-    testabilityScore += 1; // Has observable but very brief
-  } else {
-    // No observable outcome - give 1 point for proper format at least
-    testabilityScore += 1;
-    if (wordCount <= 50) { // Only suggest observable if not too long
-      feedback.push('Add observable outcome (e.g., "displays", "shows")');
-    }
-  }
-
-  // Specificity check (0-3 points)
-  const hasVague = VAGUE_TERMS.some(term => lower.includes(term));
-  
-  // Check for specific, measurable details (UI elements, numbers, technical terms)
-  const hasSpecifics = /\b(button|field|message|error|success|page|form|table|list|menu|icon|label|input|filter|status|data|profile|category|date|range|sidebar)\b/i.test(criterion) ||
-                       /\b(status code|response|timeout|limit|maximum|minimum|authentication|token|endpoint|api)\b/i.test(criterion) ||
-                       /\b\d+\b/.test(criterion); // Has numbers
-  const technicalSpecificCount = (
-    criterion.match(/\b(status|response|audit|timestamp|inventory|database|endpoint|api|token|notification|workflow|transaction|validation|error|table|record)\b/gi) || []
-  ).length;
-  
-  // Generic action verbs that don't count as specific
-  const hasGenericVerbs = /\b(responds?|works?|happens?|processes?|completes?|finishes?)\b/i.test(criterion);
-  
-  if (hasVague) {
-    specificityScore += 0;
-    feedback.push('Avoid vague terms');
-  } else if (wordCount > 50) {
-    // Very long criteria can still be specific if they include rich technical detail.
-    if (hasSpecifics && technicalSpecificCount >= 4) {
-      specificityScore += 2;
-      feedback.push('Detailed criterion is good; consider splitting for conciseness');
-    } else {
-      specificityScore += 1;
-      feedback.push('Too wordy - be more concise');
-    }
-  } else if (hasGenericVerbs && !hasSpecifics) {
-    // Generic verbs without specifics (e.g., "the system responds")
-    specificityScore += 1;
-    feedback.push('Add more detail');
-  } else if (!hasSpecifics && wordCount < 8) {
-    // Too brief and not specific
-    specificityScore += 1;
-    feedback.push('Add more detail');
-  } else if (hasSpecifics && wordCount >= 12) {
-    // Specific, detailed, and comprehensive (e.g., "filter by category, date range, and status")
-    specificityScore += 3;
-  } else if (hasSpecifics && wordCount >= 8) {
-    // Specific and detailed
-    specificityScore += 2;
-  } else {
-    // Middle ground - decent length but not specific enough
-    specificityScore += 1;
-  }
-
-  // Alignment check (0-2 points) - does criterion relate to story value?
-  if (storyValue && storyValue.trim()) {
-    const storyLower = storyValue.toLowerCase();
-    const criterionLower = criterion.toLowerCase();
-    
-    // Extract key value verbs and metrics from story
-    const valueVerbs = [
-      'reduce', 'increase', 'improve', 'enable', 'save', 'automate',
-      'simplify', 'enhance', 'prevent', 'ensure',
-      'optimise', 'minimise', 'maximise'
-    ];
-    const foundVerbs = valueVerbs.filter(verb => storyLower.includes(verb));
-    const matchingVerbGroups = Object.values(VALUE_VERB_GROUPS).filter(group =>
-      group.some(v => storyLower.includes(v)),
-    );
-    
-    // Check if criterion mentions same concepts
-    const hasSharedVerbs = foundVerbs.some(verb => criterionLower.includes(verb));
-    const hasSharedVerbSynonym = matchingVerbGroups.some(group => group.some(v => criterionLower.includes(v)));
-    
-    // Extract key nouns/metrics (simple word matching)
-    const storyWords = storyLower.split(/\s+/).filter(w => w.length > 4);
-    const criterionWords = criterionLower.split(/\s+/).filter(w => w.length > 4);
-    const sharedWords = storyWords.filter(w => criterionWords.includes(w));
-    
-    if (hasSharedVerbs || hasSharedVerbSynonym || sharedWords.length >= 2) {
-      alignmentScore = 2; // Strong alignment
-    } else if (sharedWords.length === 1) {
-      alignmentScore = 1; // Weak alignment
-    } else {
-      alignmentScore = 0; // No clear alignment
-    }
-  } else {
-    // No story value provided, award neutral score
-    alignmentScore = 1;
-  }
-
-  const totalScore = formatScore + testabilityScore + specificityScore + alignmentScore;
-
-  // Calculate grade with format-specific thresholds (~90%, ~67%, ~50%)
-  // Gherkin max: 13 (5+3+3+2), Bullet max: 12 (4+3+3+2)
-  const excellentThreshold = format === 'gherkin' ? 12 : 11;
-  const goodThreshold = format === 'gherkin' ? 9 : 8;
-  const fairThreshold = format === 'gherkin' ? 7 : 6;
-  
-  let grade, color;
-  if (totalScore >= excellentThreshold) {
-    grade = 'Excellent';
-    color = 'green';
-  } else if (totalScore >= goodThreshold) {
-    grade = 'Good';
-    color = 'blue';
-  } else if (totalScore >= fairThreshold) {
-    grade = 'Fair';
-    color = 'yellow';
-  } else {
-    grade = 'Needs work';
-    color = 'orange';
-  }
+  const totalScore = formatResult.score + testabilityResult.score + specificityResult.score + alignmentScore;
+  const { grade, color } = getSingleCriterionGrade(totalScore, format);
+  const maxScore = format === 'gherkin' ? 13 : 12;
 
   return {
     score: totalScore,
-    maxScore: format === 'gherkin' ? 13 : 12, // Gherkin: 5+3+3+2=13, Bullet: 4+3+3+2=12
+    maxScore,
     grade,
     color,
     feedback: feedback.join(' • '),
-    breakdown: {
-      format: { 
-        score: formatScore, 
-        maxScore: format === 'gherkin' ? 5 : 4, // Gherkin can get bonus point
-        label: 'Format'
-      },
-      testability: { 
-        score: testabilityScore, 
-        maxScore: 3,
-        label: 'Testability'
-      },
-      specificity: { 
-        score: specificityScore, 
-        maxScore: 3,
-        label: 'Specificity'
-      },
-      alignment: { 
-        score: alignmentScore, 
-        maxScore: 2,
-        label: 'Alignment'
-      }
+    breakdown: buildSingleCriterionBreakdown({
+      format,
+      formatScore: formatResult.score,
+      testabilityScore: testabilityResult.score,
+      specificityScore: specificityResult.score,
+      alignmentScore
+    })
+  };
+}
+
+/**
+ * Builds score-level feedback for a criteria set.
+ * @param {Record<string, number>} breakdown
+ * @param {'gherkin' | 'bullet'} selectedFormat
+ * @param {string} storyValue
+ * @returns {string[]}
+ */
+function buildCriteriaFeedback(breakdown, selectedFormat, storyValue) {
+  const feedback = [];
+
+  if (breakdown.format >= 8) {
+    feedback.push('Excellent format! Your criteria follow a clear structure.');
+  } else if (breakdown.format < 5) {
+    feedback.push(
+      selectedFormat === 'bullet'
+        ? 'Consider starting each criterion with "The system must..." or "The user can..." for clearer criteria.'
+        : 'Consider using Gherkin format (Given/When/Then) for clearer criteria.'
+    );
+  }
+
+  if (breakdown.testability >= 12) {
+    feedback.push('Great testability! Your criteria have clear, observable outcomes.');
+  } else if (breakdown.testability < 8) {
+    feedback.push('Make your criteria more testable with specific, observable outcomes.');
+  }
+
+  feedback.push(
+    breakdown.specificity >= 8
+      ? 'Nice specificity! Your criteria are clear and unambiguous.'
+      : 'Avoid vague language. Be more specific about expected behaviours.'
+  );
+
+  if (breakdown.alignment >= 8) {
+    feedback.push('Your criteria align well with the story\'s value proposition.');
+  } else if (storyValue) {
+    feedback.push('Try to align your criteria more closely with the story\'s "So that..." value.');
+  }
+
+  if (breakdown.completeness >= 8) {
+    feedback.push('Comprehensive criteria covering the full scenario.');
+  }
+
+  return feedback;
+}
+
+/**
+ * Builds actionable improvement suggestions for a criteria set.
+ * @param {Record<string, number>} breakdown
+ * @param {'gherkin' | 'bullet'} selectedFormat
+ * @param {number} criteriaCount
+ * @returns {string[]}
+ */
+function buildCriteriaSuggestions(breakdown, selectedFormat, criteriaCount) {
+  const suggestions = [];
+
+  if (breakdown.format < 8) {
+    suggestions.push(
+      selectedFormat === 'bullet'
+        ? 'Try starting each criterion with "The system must...", "The user can...", or "The page displays..."'
+        : 'Try using "Given [context], When [action], Then [outcome]" format'
+    );
+  }
+
+  if (breakdown.testability < 10) {
+    suggestions.push('Include observable outcomes like "system displays..." or "user can..."');
+  }
+
+  if (breakdown.specificity < 8) {
+    suggestions.push('Replace vague terms with specific, measurable criteria');
+  }
+
+  if (criteriaCount < 3) {
+    suggestions.push('Consider adding more criteria to cover edge cases and variations');
+  }
+
+  return suggestions;
+}
+
+/**
+ * Calculates bullet-format completeness coverage points.
+ * @param {string[]} criteria
+ * @returns {number}
+ */
+function getBulletCompletenessCoverage(criteria) {
+  let hasMust = false;
+  let hasCan = false;
+  let hasDisplays = false;
+
+  criteria.forEach((criterion) => {
+    const lower = criterion.toLowerCase();
+    hasMust ||= lower.includes('must') || lower.includes('shall');
+    hasCan ||= lower.includes('can') || lower.includes('able to');
+    hasDisplays ||= ['display', 'show', 'appear', 'message', 'notification'].some((term) => lower.includes(term));
+  });
+
+  return (hasMust ? 3 : 0) + (hasCan ? 3 : 0) + (hasDisplays ? 4 : 0);
+}
+
+/**
+ * Calculates Gherkin-format completeness coverage points.
+ * @param {string[]} criteria
+ * @returns {number}
+ */
+function getGherkinCompletenessCoverage(criteria) {
+  let hasContext = false;
+  let hasAction = false;
+  let hasOutcome = false;
+
+  criteria.forEach((criterion) => {
+    const lower = criterion.toLowerCase();
+    hasContext ||= GHERKIN_KEYWORDS.given.some((kw) => lower.includes(kw));
+    hasAction ||= GHERKIN_KEYWORDS.when.some((kw) => lower.includes(kw));
+    hasOutcome ||= GHERKIN_KEYWORDS.then.some((kw) => lower.includes(kw));
+  });
+
+  return (hasContext ? 3 : 0) + (hasAction ? 3 : 0) + (hasOutcome ? 4 : 0);
+}
+
+/**
+ * Returns the count-based completeness bonus for multiple criteria.
+ * @param {number} criteriaCount
+ * @returns {number}
+ */
+function getCriteriaCountCompletenessScore(criteriaCount) {
+  if (criteriaCount >= 5) return 5;
+  if (criteriaCount >= 3) return 3;
+  return 0;
+}
+
+/**
+ * Scores the format dimension for a single criterion.
+ * @param {string} lower
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {{score: number, feedback: string[]}}
+ */
+function scoreSingleCriterionFormat(lower, format) {
+  if (format === 'gherkin') {
+    return scoreGherkinCriterionFormat(lower);
+  }
+
+  return scoreBulletCriterionFormat(lower);
+}
+
+/**
+ * Scores Gherkin structure for a single criterion.
+ * @param {string} lower
+ * @returns {{score: number, feedback: string[]}}
+ */
+function scoreGherkinCriterionFormat(lower) {
+  const hasGiven = matchesAnyPattern(lower, ['given', '\ngiven '], { startsWithFirst: true });
+  const hasWhen = matchesAnyPattern(lower, [' when ', 'when ', '\nwhen '], { startsWithFirst: false });
+  const hasThen = matchesAnyPattern(lower, [' then ', 'then ', '\nthen '], { startsWithFirst: false });
+  const hasAnd = lower.includes('\nand ') || lower.includes(' and ');
+  const presentKeywords = [hasGiven, hasWhen, hasThen].filter(Boolean).length;
+  const hasFullStructure = hasWhen && presentKeywords >= 2;
+
+  if (hasFullStructure) {
+    return { score: hasAnd ? 5 : 4, feedback: [] };
+  }
+
+  if (presentKeywords > 0) {
+    return { score: 2, feedback: ['Include Given/When/Then structure'] };
+  }
+
+  return { score: 0, feedback: ['Use Gherkin format: Given/When/Then'] };
+}
+
+/**
+ * Scores bullet-style structure for a single criterion.
+ * @param {string} lower
+ * @returns {{score: number, feedback: string[]}}
+ */
+function scoreBulletCriterionFormat(lower) {
+  if (lower.startsWith('the system') || lower.startsWith('the user')) {
+    return { score: 4, feedback: [] };
+  }
+
+  if (lower.startsWith('user can') || lower.startsWith('system must')) {
+    return { score: 3, feedback: [] };
+  }
+
+  const hasObservablePatterns = OBSERVABLE_PATTERNS.some((pattern) => lower.includes(pattern));
+  return {
+    score: hasObservablePatterns ? 1 : 0,
+    feedback: ['Start with "The system..." or "The user..."']
+  };
+}
+
+/**
+ * Scores observable outcomes for a single criterion.
+ * @param {string} lower
+ * @param {number} wordCount
+ * @returns {{score: number, feedback: string[]}}
+ */
+function scoreSingleCriterionTestability(lower, wordCount) {
+  const contextOnlyRegex = /\b(on the page|to the page|from the (page|click))\b/i;
+  const hasObservablePattern = OBSERVABLE_PATTERNS.some((pattern) => lower.includes(pattern));
+  const hasObservable = hasObservablePattern && !contextOnlyRegex.test(lower);
+  const observablePatternCount = OBSERVABLE_PATTERNS.filter((pattern) => lower.includes(pattern)).length;
+
+  if (wordCount > 50) {
+    return { score: getLongCriterionTestabilityScore(hasObservable, observablePatternCount), feedback: [] };
+  }
+
+  if (hasObservable) {
+    return { score: getObservableTestabilityScore(wordCount), feedback: [] };
+  }
+
+  return {
+    score: 1,
+    feedback: wordCount <= 50 ? ['Add observable outcome (e.g., "displays", "shows")'] : []
+  };
+}
+
+/**
+ * Scores specificity for a single criterion.
+ * @param {string} criterion
+ * @param {string} lower
+ * @param {number} wordCount
+ * @returns {{score: number, feedback: string[]}}
+ */
+function scoreSingleCriterionSpecificity(criterion, lower, wordCount) {
+  const hasVague = VAGUE_TERMS.some((term) => lower.includes(term));
+  const hasSpecifics = hasCriterionSpecifics(criterion);
+  const technicalSpecificCount = (
+    criterion.match(/\b(status|response|audit|timestamp|inventory|database|endpoint|api|token|notification|workflow|transaction|validation|error|table|record)\b/gi) || []
+  ).length;
+  const hasGenericVerbs = /\b(responds?|works?|happens?|processes?|completes?|finishes?)\b/i.test(criterion);
+
+  if (hasVague) {
+    return { score: 0, feedback: ['Avoid vague terms'] };
+  }
+
+  if (wordCount > 50) {
+    return getLongCriterionSpecificityResult(hasSpecifics, technicalSpecificCount);
+  }
+
+  if ((hasGenericVerbs && !hasSpecifics) || (!hasSpecifics && wordCount < 8)) {
+    return { score: 1, feedback: ['Add more detail'] };
+  }
+
+  return { score: getSpecificityScore(hasSpecifics, wordCount), feedback: [] };
+}
+
+/**
+ * Scores how well a criterion reinforces the story value statement.
+ * @param {string} criterion
+ * @param {string} storyValue
+ * @returns {number}
+ */
+function scoreSingleCriterionAlignment(criterion, storyValue) {
+  if (!storyValue || !storyValue.trim()) {
+    return 1;
+  }
+
+  const storyLower = storyValue.toLowerCase();
+  const criterionLower = criterion.toLowerCase();
+  const foundVerbs = VALUE_VERBS.filter((verb) => storyLower.includes(verb));
+  const matchingVerbGroups = Object.values(VALUE_VERB_GROUPS).filter((group) =>
+    group.some((verb) => storyLower.includes(verb)),
+  );
+  const hasSharedVerbs = foundVerbs.some((verb) => criterionLower.includes(verb));
+  const hasSharedVerbSynonym = matchingVerbGroups.some((group) => group.some((verb) => criterionLower.includes(verb)));
+  const storyWords = storyLower.split(/\s+/).filter((word) => word.length > 4);
+  const criterionWords = criterionLower.split(/\s+/).filter((word) => word.length > 4);
+  const sharedWords = storyWords.filter((word) => criterionWords.includes(word));
+
+  if (hasSharedVerbs || hasSharedVerbSynonym || sharedWords.length >= 2) return 2;
+  if (sharedWords.length === 1) return 1;
+  return 0;
+}
+
+/**
+ * Converts a single-criterion score into the displayed grade metadata.
+ * @param {number} totalScore
+ * @param {'gherkin' | 'bullet'} format
+ * @returns {{grade: string, color: string}}
+ */
+function getSingleCriterionGrade(totalScore, format) {
+  const excellentThreshold = format === 'gherkin' ? 12 : 11;
+  const goodThreshold = format === 'gherkin' ? 9 : 8;
+  const fairThreshold = format === 'gherkin' ? 7 : 6;
+
+  if (totalScore >= excellentThreshold) return { grade: 'Excellent', color: 'green' };
+  if (totalScore >= goodThreshold) return { grade: 'Good', color: 'blue' };
+  if (totalScore >= fairThreshold) return { grade: 'Fair', color: 'yellow' };
+  return { grade: 'Needs work', color: 'orange' };
+}
+
+/**
+ * Builds the per-dimension breakdown payload for a single criterion.
+ * @param {{format: 'gherkin' | 'bullet', formatScore: number, testabilityScore: number, specificityScore: number, alignmentScore: number}} input
+ * @returns {object}
+ */
+function buildSingleCriterionBreakdown({
+  format,
+  formatScore,
+  testabilityScore,
+  specificityScore,
+  alignmentScore
+}) {
+  return {
+    format: {
+      score: formatScore,
+      maxScore: format === 'gherkin' ? 5 : 4,
+      label: 'Format'
+    },
+    testability: {
+      score: testabilityScore,
+      maxScore: 3,
+      label: 'Testability'
+    },
+    specificity: {
+      score: specificityScore,
+      maxScore: 3,
+      label: 'Specificity'
+    },
+    alignment: {
+      score: alignmentScore,
+      maxScore: 2,
+      label: 'Alignment'
     }
   };
+}
+
+/**
+ * Checks whether text starts with or contains any of the provided patterns.
+ * @param {string} text
+ * @param {string[]} patterns
+ * @param {{startsWithFirst: boolean}} options
+ * @returns {boolean}
+ */
+function matchesAnyPattern(text, patterns, { startsWithFirst }) {
+  const [startPattern, ...includePatterns] = patterns;
+  return (
+    (startsWithFirst && text.startsWith(startPattern)) ||
+    includePatterns.some((pattern) => text.includes(pattern))
+  );
+}
+
+/**
+ * Returns the testability score band for long criteria.
+ * @param {boolean} hasObservable
+ * @param {number} observablePatternCount
+ * @returns {number}
+ */
+function getLongCriterionTestabilityScore(hasObservable, observablePatternCount) {
+  if (hasObservable && observablePatternCount >= 3) return 3;
+  if (hasObservable) return 2;
+  return 1;
+}
+
+/**
+ * Returns the testability score band for observable criteria by length.
+ * @param {number} wordCount
+ * @returns {number}
+ */
+function getObservableTestabilityScore(wordCount) {
+  if (wordCount >= 8) return 3;
+  if (wordCount >= 5) return 2;
+  return 1;
+}
+
+/**
+ * Returns the specificity score band for the supplied criterion details.
+ * @param {boolean} hasSpecifics
+ * @param {number} wordCount
+ * @returns {number}
+ */
+function getSpecificityScore(hasSpecifics, wordCount) {
+  if (hasSpecifics && wordCount >= 12) return 3;
+  if (hasSpecifics && wordCount >= 8) return 2;
+  return 1;
+}
+
+/**
+ * Checks whether a criterion contains concrete UI, technical, or numeric details.
+ * @param {string} criterion
+ * @returns {boolean}
+ */
+function hasCriterionSpecifics(criterion) {
+  return [
+    /\b(button|field|message|error|success|page|form|table|list|menu|icon|label|input|filter|status|data|profile|category|date|range|sidebar)\b/i,
+    /\b(status code|response|timeout|limit|maximum|minimum|authentication|token|endpoint|api)\b/i,
+    /\b\d+\b/
+  ].some((pattern) => pattern.test(criterion));
+}
+
+/**
+ * Returns the specificity result for long criteria.
+ * @param {boolean} hasSpecifics
+ * @param {number} technicalSpecificCount
+ * @returns {{score: number, feedback: string[]}}
+ */
+function getLongCriterionSpecificityResult(hasSpecifics, technicalSpecificCount) {
+  if (hasSpecifics && technicalSpecificCount >= 4) {
+    return { score: 2, feedback: ['Detailed criterion is good; consider splitting for conciseness'] };
+  }
+
+  return { score: 1, feedback: ['Too wordy - be more concise'] };
 }
 
 /**
