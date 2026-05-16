@@ -4,6 +4,9 @@ import {
   improveCriteriaWithAI,
 } from '../llmService';
 
+const TEST_API_KEY = 'sk-test-not-real';
+const SAMPLE_CRITERION = 'Given a valid form is completed by the user\nWhen the user clicks Submit\nThen the system shows a success message';
+
 function makeChatResponse(content) {
   return {
     ok: true,
@@ -33,7 +36,7 @@ describe('llmService payload hardening', () => {
             suggestions: [
               {
                 original:
-                  'Given a valid form is completed by the user\nWhen the user clicks Submit\nThen the system shows a success message',
+                  SAMPLE_CRITERION,
                 improved:
                   'Given a valid form is completed by the user, When the user clicks Submit, Then the system shows a success message and records an audit event.',
               },
@@ -48,7 +51,7 @@ describe('llmService payload hardening', () => {
 
     await improveCriteriaWithAI({
       criteria: [
-        'Given a valid form is completed by the user\nWhen the user clicks Submit\nThen the system shows a success message',
+        SAMPLE_CRITERION,
       ],
       format: 'gherkin',
       draftScore: 41,
@@ -62,7 +65,7 @@ describe('llmService payload hardening', () => {
         iWant: 'to review purchase requests quickly',
         soThat: 'I can reduce approval lead time by 30%',
       },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     const [, request] = fetchMock.mock.calls[0];
@@ -115,7 +118,7 @@ describe('llmService payload hardening', () => {
       },
       draftScore: 39,
       breakdown: { completeness: 10, length: 6, clarity: 10, soThatQuality: 8, creativity: 5 },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -136,7 +139,7 @@ describe('llmService payload hardening', () => {
       },
       draftScore: 39,
       breakdown: { completeness: 10, length: 6, clarity: 10, soThatQuality: 8, creativity: 5 },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(result).toHaveProperty('issues');
@@ -147,7 +150,7 @@ describe('llmService payload hardening', () => {
 
   it('retries criteria suggestion when first response uses template tokens', async () => {
     const criteriaInput = [
-      'Given a valid form is completed by the user\nWhen the user clicks Submit\nThen the system shows a success message',
+      SAMPLE_CRITERION,
     ];
 
     const fetchMock = vi
@@ -180,7 +183,7 @@ describe('llmService payload hardening', () => {
       format: 'gherkin',
       draftScore: 31,
       breakdown: { format: 5, testability: 8, specificity: 6, alignment: 6, completeness: 6 },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -234,7 +237,7 @@ describe('llmService payload hardening', () => {
       format: 'gherkin',
       draftScore: 41,
       breakdown: { format: 10, testability: 9, specificity: 7, alignment: 5, completeness: 10 },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -245,7 +248,7 @@ describe('llmService payload hardening', () => {
 
   it('keeps non-regressive criteria suggestions even when uplift is minimal', async () => {
     const criteriaInput = [
-      'Given a valid form is completed by the user\nWhen the user clicks Submit\nThen the system shows a success message',
+      SAMPLE_CRITERION,
     ];
 
     const nonImprovingPayload = JSON.stringify({
@@ -275,7 +278,7 @@ describe('llmService payload hardening', () => {
         iWant: 'to process requests faster',
         soThat: 'I can reduce manual rework by 20%',
       },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -326,7 +329,7 @@ describe('llmService payload hardening', () => {
         iWant: 'to process requests reliably',
         soThat: 'I can reduce approval delays',
       },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(result.suggestions.length).toBe(2);
@@ -378,7 +381,7 @@ describe('llmService payload hardening', () => {
         iWant: 'to implement energy-efficient building materials',
         soThat: 'we can reduce energy costs by 30% annually',
       },
-      apiKey: 'sk-test-not-real',
+      apiKey: TEST_API_KEY,
     });
 
     expect(result.suggestions.length).toBe(3);

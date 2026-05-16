@@ -23,6 +23,10 @@ const OBSERVABLE_PATTERNS = [
   'page', 'downloads', 'download' // removed 'click' as it's an action, not an outcome
 ];
 
+// Bullet-point structure prefixes used for format detection and scoring
+const BULLET_PREFIX_THE_SYSTEM = 'the system';
+const BULLET_PREFIX_SYSTEM_MUST = 'system must';
+
 // Vague/weak terms to avoid
 const VAGUE_TERMS = [
   'should basically', 'kind of', 'sort of', 'mostly', 'probably',
@@ -183,8 +187,8 @@ function scoreFormat(criteria, selectedFormat = 'gherkin') {
     }
     
     // Check for bullet-point behavioral structure
-    if (lower.startsWith('the system') || lower.startsWith('the user') ||
-        lower.startsWith('user can') || lower.startsWith('system must')) {
+    if (lower.startsWith(BULLET_PREFIX_THE_SYSTEM) || lower.startsWith('the user') ||
+        lower.startsWith('user can') || lower.startsWith(BULLET_PREFIX_SYSTEM_MUST)) {
       structuredCount++;
     }
   });
@@ -335,8 +339,8 @@ export function detectFormat(criteria) {
         GHERKIN_KEYWORDS.when.some(kw => lower.startsWith(kw)) ||
         GHERKIN_KEYWORDS.then.some(kw => lower.startsWith(kw))) {
       gherkinCount++;
-    } else if (lower.startsWith('the system') || lower.startsWith('the user') ||
-               lower.startsWith('user can') || lower.startsWith('system must')) {
+    } else if (lower.startsWith(BULLET_PREFIX_THE_SYSTEM) || lower.startsWith('the user') ||
+               lower.startsWith('user can') || lower.startsWith(BULLET_PREFIX_SYSTEM_MUST)) {
       bulletCount++;
     }
   });
@@ -566,11 +570,11 @@ function scoreGherkinCriterionFormat(lower) {
  * @returns {{score: number, feedback: string[]}}
  */
 function scoreBulletCriterionFormat(lower) {
-  if (lower.startsWith('the system') || lower.startsWith('the user')) {
+  if (lower.startsWith(BULLET_PREFIX_THE_SYSTEM) || lower.startsWith('the user')) {
     return { score: 4, feedback: [] };
   }
 
-  if (lower.startsWith('user can') || lower.startsWith('system must')) {
+  if (lower.startsWith('user can') || lower.startsWith(BULLET_PREFIX_SYSTEM_MUST)) {
     return { score: 3, feedback: [] };
   }
 

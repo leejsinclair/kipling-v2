@@ -110,9 +110,7 @@ export async function validateOpenAIKey(apiKey) {
  * Returns the improvement payload or throws a normalized error.
  */
 export async function improveStoryWithAI({ story, draftScore, breakdown, apiKey }) {
-  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-    throw { type: 'invalid_key', message: 'No API key provided.' };
-  }
+  ensureApiKey(apiKey);
 
   if (isMockKey(apiKey)) {
     mockValidate(apiKey);
@@ -144,9 +142,7 @@ export async function improveStoryWithAI({ story, draftScore, breakdown, apiKey 
  * Returns the improvement payload or throws a normalized error.
  */
 export async function improveCriteriaWithAI({ criteria, format, draftScore, breakdown, hintTargets, story, apiKey }) {
-  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-    throw { type: 'invalid_key', message: 'No API key provided.' };
-  }
+  ensureApiKey(apiKey);
 
   if (isMockKey(apiKey)) {
     mockValidate(apiKey);
@@ -261,6 +257,7 @@ Your previous answer contained invalid/template values. Regenerate with concrete
 }
 
 function buildCriteriaPrompt({ criteria, format, draftScore, breakdown, hintTargets, story }) {
+  const NOT_PROVIDED = '(not provided)';
   const criteriaText = Array.isArray(criteria)
     ? criteria.map((c, i) => `  ${i + 1}. ${c}`).join('\n')
     : String(criteria);
@@ -280,11 +277,11 @@ function buildCriteriaPrompt({ criteria, format, draftScore, breakdown, hintTarg
   const storyContext = story && typeof story === 'object'
     ? [
         'Story context (for alignment):',
-        `  As a: ${story.asA || '(not provided)'}`,
-        `  I want: ${story.iWant || '(not provided)'}`,
-        `  So that: ${story.soThat || '(not provided)'}`,
+        `  As a: ${story.asA || NOT_PROVIDED}`,
+        `  I want: ${story.iWant || NOT_PROVIDED}`,
+        `  So that: ${story.soThat || NOT_PROVIDED}`,
       ].join('\n')
-    : 'Story context (for alignment): (not provided)';
+    : `Story context (for alignment): ${NOT_PROVIDED}`;
 
   return `You are an agile coach helping improve acceptance criteria written in ${format} format.
 
