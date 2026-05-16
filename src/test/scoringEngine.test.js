@@ -64,7 +64,13 @@ describe('scoreStory', () => {
     const story = {
       asA: 'user',
       iWant: 'to improve',
-      soThat: Array(42).fill('value').join(' ')
+      soThat: [
+        'so', 'that', 'our', 'support', 'teams', 'can', 'resolve', 'tickets', 'faster', 'with',
+        'clearer', 'handoffs', 'fewer', 'reopens', 'and', 'stronger', 'first', 'contact', 'resolution',
+        'for', 'enterprise', 'customers', 'across', 'regions', 'while', 'maintaining', 'audit', 'quality',
+        'reducing', 'escalations', 'improving', 'satisfaction', 'and', 'protecting', 'response', 'time',
+        'targets', 'during', 'peak', 'seasonal', 'volumes', 'consistently',
+      ].join(' ')
     };
 
     const result = scoreStory(story);

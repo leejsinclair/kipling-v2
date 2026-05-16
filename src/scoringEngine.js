@@ -136,6 +136,7 @@ function scoreLengthBand(wordCount) {
     { matches: (count) => count >= 15 && count < 18, score: 8 },
     { matches: (count) => count > 40 && count <= 50, score: 7 },
     { matches: (count) => count > 50, score: 4 },
+    { matches: () => true, score: 5 },
   ];
 
   for (const band of bands) {
@@ -143,8 +144,6 @@ function scoreLengthBand(wordCount) {
       return band.score;
     }
   }
-
-  return 5;
 }
 
 function scoreClarity(text) {
